@@ -41,7 +41,7 @@ func resourceManagedDisk() *pluginsdk.Resource {
 		}),
 
 		Importer: pluginsdk.ImporterValidatingResourceId(func(id string) error {
-			_, err := parse.ManagedDiskID(id)
+			_, err := disks.ParseDiskID(id)
 			return err
 		}),
 
@@ -59,9 +59,9 @@ func resourceManagedDisk() *pluginsdk.Resource {
 				ForceNew: true,
 			},
 
-			"location": azure.SchemaLocation(),
+			"location": commonschema.Location(),
 
-			"resource_group_name": azure.SchemaResourceGroupName(),
+			"resource_group_name": commonschema.ResourceGroupName(),
 
 			"storage_account_type": {
 				Type:     pluginsdk.TypeString,
@@ -343,7 +343,7 @@ func resourceManagedDiskCreate(d *pluginsdk.ResourceData, meta interface{}) erro
 		props.MaxShares = utils.Int64(int64(maxShares))
 	}
 
-	if storageAccountType == string(disks.DiskStorageAccountTypesUltraSSDLRS) {
+	if storageAccountType == string(disks.DiskStorageAccountTypesUltraSSDLRS) || storageAccountType == string(disks.DiskStorageAccountTypesPremiumVTwoLRS) {
 		if d.HasChange("disk_iops_read_write") {
 			v := d.Get("disk_iops_read_write")
 			diskIOPS := int64(v.(int))
@@ -358,7 +358,7 @@ func resourceManagedDiskCreate(d *pluginsdk.ResourceData, meta interface{}) erro
 
 		if v, ok := d.GetOk("disk_iops_read_only"); ok {
 			if maxShares == 0 {
-				return fmt.Errorf("[ERROR] disk_iops_read_only is only available for UltraSSD disks with shared disk enabled")
+				return fmt.Errorf("[ERROR] disk_iops_read_only is only available for UltraSSD disks and PremiumV2 disks with shared disk enabled")
 			}
 
 			props.DiskIOPSReadOnly = utils.Int64(int64(v.(int)))
@@ -366,7 +366,7 @@ func resourceManagedDiskCreate(d *pluginsdk.ResourceData, meta interface{}) erro
 
 		if v, ok := d.GetOk("disk_mbps_read_only"); ok {
 			if maxShares == 0 {
-				return fmt.Errorf("[ERROR] disk_mbps_read_only is only available for UltraSSD disks with shared disk enabled")
+				return fmt.Errorf("[ERROR] disk_mbps_read_only is only available for UltraSSD disks and PremiumV2 disks with shared disk enabled")
 			}
 
 			props.DiskMBpsReadOnly = utils.Int64(int64(v.(int)))
@@ -376,7 +376,7 @@ func resourceManagedDiskCreate(d *pluginsdk.ResourceData, meta interface{}) erro
 			props.CreationData.LogicalSectorSize = utils.Int64(int64(v.(int)))
 		}
 	} else if d.HasChange("disk_iops_read_write") || d.HasChange("disk_mbps_read_write") || d.HasChange("disk_iops_read_only") || d.HasChange("disk_mbps_read_only") || d.HasChange("logical_sector_size") {
-		return fmt.Errorf("[ERROR] disk_iops_read_write, disk_mbps_read_write, disk_iops_read_only, disk_mbps_read_only and logical_sector_size are only available for UltraSSD disks")
+		return fmt.Errorf("[ERROR] disk_iops_read_write, disk_mbps_read_write, disk_iops_read_only, disk_mbps_read_only and logical_sector_size are only available for UltraSSD disks and PremiumV2 disks")
 	}
 
 	if createOption == disks.DiskCreateOptionImport {
@@ -567,6 +567,8 @@ func resourceManagedDiskCreate(d *pluginsdk.ResourceData, meta interface{}) erro
 
 func resourceManagedDiskUpdate(d *pluginsdk.ResourceData, meta interface{}) error {
 	client := meta.(*clients.Client).Compute.DisksClient
+	virtualMachinesClient := meta.(*clients.Client).Compute.VirtualMachinesClient
+	skusClient := meta.(*clients.Client).Compute.SkusClient
 	ctx, cancel := timeouts.ForUpdate(meta.(*clients.Client).StopContext, d)
 	defer cancel()
 
@@ -638,7 +640,7 @@ func resourceManagedDiskUpdate(d *pluginsdk.ResourceData, meta interface{}) erro
 		}
 	}
 
-	if strings.EqualFold(storageAccountType, string(disks.DiskStorageAccountTypesUltraSSDLRS)) {
+	if strings.EqualFold(storageAccountType, string(disks.DiskStorageAccountTypesUltraSSDLRS)) || storageAccountType == string(disks.DiskStorageAccountTypesPremiumVTwoLRS) {
 		if d.HasChange("disk_iops_read_write") {
 			v := d.Get("disk_iops_read_write")
 			diskIOPS := int64(v.(int))
@@ -669,7 +671,7 @@ func resourceManagedDiskUpdate(d *pluginsdk.ResourceData, meta interface{}) erro
 			diskUpdate.Properties.DiskMBpsReadOnly = utils.Int64(int64(v.(int)))
 		}
 	} else if d.HasChange("disk_iops_read_write") || d.HasChange("disk_mbps_read_write") || d.HasChange("disk_iops_read_only") || d.HasChange("disk_mbps_read_only") {
-		return fmt.Errorf("[ERROR] disk_iops_read_write, disk_mbps_read_write, disk_iops_read_only and disk_mbps_read_only are only available for UltraSSD disks")
+		return fmt.Errorf("[ERROR] disk_iops_read_write, disk_mbps_read_write, disk_iops_read_only and disk_mbps_read_only are only available for UltraSSD disks and PremiumV2 disks")
 	}
 
 	if d.HasChange("os_type") {
@@ -678,9 +680,26 @@ func resourceManagedDiskUpdate(d *pluginsdk.ResourceData, meta interface{}) erro
 	}
 
 	if d.HasChange("disk_size_gb") {
-		if old, new := d.GetChange("disk_size_gb"); new.(int) > old.(int) {
-			shouldShutDown = true
-			diskUpdate.Properties.DiskSizeGB = utils.Int64(int64(new.(int)))
+		if oldSize, newSize := d.GetChange("disk_size_gb"); newSize.(int) > oldSize.(int) {
+			canBeResizedWithoutDowntime := false
+			if meta.(*clients.Client).Features.ManagedDisk.ExpandWithoutDowntime {
+				diskSupportsNoDowntimeResize, err := determineIfDataDiskSupportsNoDowntimeResize(disk.Model, oldSize.(int), newSize.(int))
+				if err != nil {
+					return fmt.Errorf("determining if the Disk supports no-downtime-resize: %+v", err)
+				}
+
+				vmSkuSupportsNoDowntimeResize, err := determineIfVirtualMachineSkuSupportsNoDowntimeResize(ctx, disk.Model.ManagedBy, virtualMachinesClient, skusClient)
+				if err != nil {
+					return fmt.Errorf("determining if the Virtual Machine the Disk is attached to supports no-downtime-resize: %+v", err)
+				}
+
+				canBeResizedWithoutDowntime = *vmSkuSupportsNoDowntimeResize && *diskSupportsNoDowntimeResize
+			}
+			if !canBeResizedWithoutDowntime {
+				log.Printf("[INFO] The %s, or the Virtual Machine that it's attached to, doesn't support no-downtime-resizing - requiring that the VM should be shutdown", *id)
+				shouldShutDown = true
+			}
+			diskUpdate.Properties.DiskSizeGB = utils.Int64(int64(newSize.(int)))
 		} else {
 			return fmt.Errorf("- New size must be greater than original size. Shrinking disks is not supported on Azure")
 		}

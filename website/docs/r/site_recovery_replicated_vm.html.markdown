@@ -246,7 +246,7 @@ The following arguments are supported:
 
 * `managed_disk` - (Required) One or more `managed_disk` block.
 
-* `target_network_id` - (Optional) Network to use when a failover is done (recommended to set if any network_interface is configured for failover). 
+* `target_network_id` - (Optional) Network to use when a failover is done (recommended to set if any network_interface is configured for failover).
 
 * `network_interface` - (Optional) One or more `network_interface` block.
 
@@ -260,9 +260,9 @@ A `managed_disk` block supports the following:
 
 * `target_resource_group_id` - (Required) Resource group disk should belong to when a failover is done.
 
-* `target_disk_type` - (Required) What type should the disk be when a failover is done.
+* `target_disk_type` - (Required) What type should the disk be when a failover is done. Possible values are `Standard_LRS`, `Premium_LRS`, `StandardSSD_LRS` and `UltraSSD_LRS`.
 
-* `target_replica_disk_type` - (Required) What type should the disk be that holds the replication data.
+* `target_replica_disk_type` - (Required) What type should the disk be that holds the replication data. Possible values are `Standard_LRS`, `Premium_LRS`, `StandardSSD_LRS` and `UltraSSD_LRS`.
 
 * `target_disk_encryption_set_id` - (Optional)  The Disk Encryption Set that the Managed Disk will be associated with.
 

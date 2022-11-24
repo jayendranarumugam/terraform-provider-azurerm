@@ -76,7 +76,7 @@ resource "azurerm_orbital_contact_profile" "example" {
 
 ## Arguments Reference
 
-The following arguments are supported: 
+The following arguments are supported:
 
 * `name` - (Required) The name of the contact profile. Changing this forces a new resource to be created.
 
@@ -106,7 +106,7 @@ A `links` block supports the following:
 
 * `name` - (Required) Name of the link.
 
-* `polarization` - (Required) Polarization of the link. Possible values are `RHCP`, `LHCP`, `linearVertical` and `linearHorizonal`.
+* `polarization` - (Required) Polarization of the link. Possible values are `LHCP`, `RHCP`, `linearVertical` and `linearHorizontal`.
 
 ---
 
