@@ -18,6 +18,25 @@ resource "azurerm_resource_group" "example" {
   name     = "example-datadog"
   location = "West US 2"
 }
+
+resource "azurerm_datadog_monitor" "example" {
+  name                = "example-monitor"
+  resource_group_name = azurerm_resource_group.example.name
+  location            = azurerm_resource_group.example.location
+  datadog_organization {
+    api_key         = "XXXX"
+    application_key = "XXXX"
+  }
+  user {
+    name  = "Example"
+    email = "abc@xyz.com"
+  }
+  sku_name = "Linked"
+  identity {
+    type = "SystemAssigned"
+  }
+}
+
 resource "azurerm_datadog_monitor_tag_rule" "example" {
   datadog_monitor_id = azurerm_datadog_monitor.example.id
   log {
@@ -41,7 +60,7 @@ The following arguments are supported:
 
 ---
 
-* `rule_set_name` - (Optional) The name of the Tag Rules configuration.
+* `name` - (Optional) The name of the Tag Rules configuration. The allowed value is `default`. Defaults to `default`.
 
 * `log` - (Optional) A `log` block as defined below.
 
@@ -60,6 +79,7 @@ An `log` block supports the following:
 * `filter` - (Optional) A `filter` block as defined below.
 
 > **NOTE:** List of filtering tags to be used for capturing logs. This only takes effect if `resource_log_enabled` flag is enabled. If empty, all resources will be captured. If only Exclude action is specified, the rules will apply to the list of all available resources. If Include actions are specified, the rules will only include resources with the associated tags.
+
 ---
 
 A `metric` block supports the following:
@@ -67,6 +87,7 @@ A `metric` block supports the following:
 * `filter` - (Optional) A `filter` block as defined below.
 
 > **NOTE:** List of filtering tags to be used for capturing metrics. If empty, all resources will be captured. If only Exclude action is specified, the rules will apply to the list of all available resources. If Include actions are specified, the rules will only include resources with the associated tags.
+
 ---
 
 A `filter` block supports the following:

@@ -86,8 +86,6 @@ The following arguments are supported:
 
 * `subject_ends_with` - (Optional) The pattern that event subject ends with for trigger to fire.
 
-~> **Note:** At least one of `subject_begins_with` and `subject_ends_with` must be set.
-
 ---
 
 A `pipeline` block supports the following:
@@ -98,7 +96,7 @@ A `pipeline` block supports the following:
 
 ## Attributes Reference
 
-The following attributes are exported:
+In addition to the Arguments listed above - the following Attributes are exported:
 
 * `id` - The ID of the Data Factory Custom Event Trigger.
 

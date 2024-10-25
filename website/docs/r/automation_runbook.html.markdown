@@ -88,13 +88,13 @@ The following arguments are supported:
 
 * `automation_account_name` - (Required) The name of the automation account in which the Runbook is created. Changing this forces a new resource to be created.
 
-* `runbook_type` - (Required) The type of the runbook - can be either `Graph`, `GraphPowerShell`, `GraphPowerShellWorkflow`, `PowerShellWorkflow`, `PowerShell`, `Python3`, `Python2` or `Script`.
+* `runbook_type` - (Required) The type of the runbook - can be either `Graph`, `GraphPowerShell`, `GraphPowerShellWorkflow`, `PowerShellWorkflow`, `PowerShell`, `PowerShell72`, `Python3`, `Python2` or `Script`. Changing this forces a new resource to be created.
 
 * `log_progress` - (Required) Progress log option.
 
 * `log_verbose` - (Required) Verbose log option.
 
-* `publish_content_link` - (Optional) The published runbook content link.
+* `publish_content_link` - (Optional) One `publish_content_link` block as defined below.
 
 * `description` - (Optional) A description for this credential.
 
@@ -106,17 +106,21 @@ The following arguments are supported:
 
 * `log_activity_trace_level` - (Optional) Specifies the activity-level tracing options of the runbook, available only for Graphical runbooks. Possible values are `0` for None, `9` for Basic, and `15` for Detailed. Must turn on Verbose logging in order to see the tracing.
 
-* `draft` - (Required) A `draft` block as defined below .
+* `draft` - (Optional) A `draft` block as defined below.
+
+* `job_schedule` - (Optional) One or more `job_schedule` block as defined below.
+
+~> **NOTE** AzureRM provides a stand-alone [azurerm_automation_job_schedule](automation_job_schedule.html.markdown) and this inlined `job_schdule` property to manage the job schedules. At this time you should choose one of them to manage the job schedule resources.
 
 ---
 
-The `publish_content_link` supports the following:
+The `publish_content_link` block supports the following:
 
 * `uri` - (Required) The URI of the runbook content.
 
 * `version` - (Optional) Specifies the version of the content
 
-* `hash` - (Optional) A `hash` block as defined blow.
+* `hash` - (Optional) A `hash` block as defined below.
 
 ---
 
@@ -132,31 +136,51 @@ The `draft` block supports:
 
 * `edit_mode_enabled` - (Optional) Whether the draft in edit mode.
 
-* `content_link` (Optioinal) The Draft Content Link defined as `publish_content_link` above.
+* `content_link` - (Optional) A `publish_content_link` block as defined above.
 
-* `output_types` (Optioinal) Specifies the output types of the runbook.
+* `output_types` - (Optional) Specifies the output types of the runbook.
 
-* `parameter` (Optional) A list of `parameter` block as define below.
+* `parameters` - (Optional) A list of `parameters` block as defined below.
 
---
+---
 
-The `parameter` block supports:
+The `parameters` block supports:
 
-* `key` (Required) The name of the parameter.
+* `key` - (Required) The name of the parameter.
 
-* `type` (Optional) Specifies the type of this parameter.
+* `type` - (Required) Specifies the type of this parameter.
 
-* `mandatory` (Optional) Whether this parameter is mandatory.
+* `mandatory` - (Optional) Whether this parameter is mandatory.
 
-* `positioin` (Optional) Specifies the position of the parameter.
+* `position` - (Optional) Specifies the position of the parameter.
 
-* `default_value` (Optional) Specifies the default value of the parameter.
+* `default_value` - (Optional) Specifies the default value of the parameter.
+
+---
+
+The `job_schedule` block supports:
+
+* `schedule_name` - (Required) The name of the Schedule.
+
+* `parameters` - (Optional) A map of key/value pairs corresponding to the arguments that can be passed to the Runbook.
+
+-> **NOTE:** The parameter keys/names must strictly be in lowercase, even if this is not the case in the runbook. This is due to a limitation in Azure Automation where the parameter names are normalized. The values specified don't have this limitation.
+
+* `run_on` - (Optional) Name of a Hybrid Worker Group the Runbook will be executed on.
 
 ## Attributes Reference
 
-The following attributes are exported:
+In addition to the Arguments listed above - the following Attributes are exported:
 
 * `id` - The Automation Runbook ID.
+
+* `job_schedule` - One or more `job_schedule` block as defined below.
+
+---
+
+An `job_schedule` block exports the following:
+
+* `job_schedule_id` - The UUID of automation runbook job schedule ID.
 
 ## Timeouts
 

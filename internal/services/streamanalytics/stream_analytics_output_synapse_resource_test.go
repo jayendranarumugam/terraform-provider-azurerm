@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package streamanalytics_test
 
 import (
@@ -5,10 +8,11 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/hashicorp/go-azure-helpers/lang/response"
+	"github.com/hashicorp/go-azure-sdk/resource-manager/streamanalytics/2021-10-01-preview/outputs"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/acceptance"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/acceptance/check"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/clients"
-	"github.com/hashicorp/terraform-provider-azurerm/internal/services/streamanalytics/parse"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/tf/pluginsdk"
 	"github.com/hashicorp/terraform-provider-azurerm/utils"
 )
@@ -82,14 +86,14 @@ func TestAccStreamAnalyticsOutputSynapse_requiresImport(t *testing.T) {
 }
 
 func (r StreamAnalyticsOutputSynapseResource) Exists(ctx context.Context, client *clients.Client, state *pluginsdk.InstanceState) (*bool, error) {
-	id, err := parse.OutputID(state.ID)
+	id, err := outputs.ParseOutputID(state.ID)
 	if err != nil {
 		return nil, err
 	}
 
-	resp, err := client.StreamAnalytics.OutputsClient.Get(ctx, id.ResourceGroup, id.StreamingjobName, id.Name)
+	resp, err := client.StreamAnalytics.OutputsClient.Get(ctx, *id)
 	if err != nil {
-		if utils.ResponseWasNotFound(resp.Response) {
+		if response.WasNotFound(resp.HttpResponse) {
 			return utils.Bool(false), nil
 		}
 		return nil, fmt.Errorf("retrieving %s: %+v", *id, err)
@@ -126,6 +130,7 @@ resource "azurerm_synapse_sql_pool" "test" {
   synapse_workspace_id = azurerm_synapse_workspace.test.id
   sku_name             = "DW100c"
   create_mode          = "Default"
+  storage_account_type = "GRS"
 }
 
 resource "azurerm_stream_analytics_output_synapse" "test" {
@@ -148,13 +153,13 @@ func (r StreamAnalyticsOutputSynapseResource) updated(data acceptance.TestData) 
 %[1]s
 
 resource "azurerm_stream_analytics_output_synapse" "test" {
-  name                      = "acctestoutput-updated-%[2]d"
+  name                      = "acctestoutput-%[2]d"
   stream_analytics_job_name = azurerm_stream_analytics_job.test.name
   resource_group_name       = azurerm_stream_analytics_job.test.resource_group_name
 
   server   = azurerm_synapse_workspace.test.connectivity_endpoints["sqlOnDemand"]
   user     = azurerm_synapse_workspace.test.sql_administrator_login
-  password = azurerm_synapse_workspace.test.sql_administrator_login_password
+  password = "updatedPassword"
   database = "master"
   table    = "AccTestTable"
 }

@@ -38,10 +38,9 @@ resource "azurerm_servicebus_namespace" "example" {
 
 The following arguments are supported:
 
-* `name` - (Required) Specifies the name of the ServiceBus Namespace resource . Changing this forces a
-    new resource to be created.
+* `name` - (Required) Specifies the name of the ServiceBus Namespace resource . Changing this forces a new resource to be created.
 
-* `resource_group_name` - (Required) The name of the resource group in which to
+* `resource_group_name` - (Required) The name of the resource group in which to Changing this forces a new resource to be created.
     create the namespace.
 
 * `location` - (Required) Specifies the supported Azure location where the resource exists. Changing this forces a new resource to be created.
@@ -52,15 +51,19 @@ The following arguments are supported:
 
 * `capacity` - (Optional) Specifies the capacity. When `sku` is `Premium`, capacity can be `1`, `2`, `4`, `8` or `16`. When `sku` is `Basic` or `Standard`, capacity can be `0` only.
 
+* `premium_messaging_partitions` - (Optional) Specifies the number messaging partitions. Only valid when `sku` is `Premium` and the minimum number is `1`. Possible values include `0`, `1`, `2`, and `4`. Defaults to `0` for Standard, Basic namespace. Changing this forces a new resource to be created.
+
+-> **Note:** It's not possible to change the partitioning option on any existing namespace. The number of partitions can only be set during namespace creation. Please check the doc https://learn.microsoft.com/en-us/azure/service-bus-messaging/enable-partitions-premium for more feature restrictions. 
+
 * `customer_managed_key` - (Optional) An `customer_managed_key` block as defined below.
 
 * `local_auth_enabled` - (Optional) Whether or not SAS authentication is enabled for the Service Bus namespace. Defaults to `true`.
 
 * `public_network_access_enabled` - (Optional) Is public network access enabled for the Service Bus Namespace? Defaults to `true`.
 
-* `minimum_tls_version` - (Optional) The minimum supported TLS version for this Service Bus Namespace. Valid values are: `1.0`, `1.1` and `1.2`. The current default minimum TLS version is `1.2`.
+* `minimum_tls_version` - (Optional) The minimum supported TLS version for this Service Bus Namespace. Valid values are: `1.0`, `1.1` and `1.2`. Defaults to `1.2`.
 
-* `zone_redundant` - (Optional) Whether or not this resource is zone redundant. `sku` needs to be `Premium`. Defaults to `false`.
+* `network_rule_set` - (Optional) An `network_rule_set` block as defined below.
 
 * `tags` - (Optional) A mapping of tags to assign to the resource.
 
@@ -78,21 +81,49 @@ An `identity` block supports the following:
 
 -> **Note:** Once customer-managed key encryption has been enabled, it cannot be disabled.
 
+---
+
 A `customer_managed_key` block supports the following:
 
 * `key_vault_key_id` - (Required) The ID of the Key Vault Key which should be used to Encrypt the data in this ServiceBus Namespace.
 
 * `identity_id` - (Required) The ID of the User Assigned Identity that has access to the key.
 
-* `infrastructure_encryption_enabled` - (Optional) Used to specify whether enable Infrastructure Encryption (Double Encryption).
+* `infrastructure_encryption_enabled` - (Optional) Used to specify whether enable Infrastructure Encryption (Double Encryption). Changing this forces a new resource to be created.
+
+---
+
+A `network_rule_set` block supports the following:
+
+* `default_action` - (Optional) Specifies the default action for the Network Rule Set. Possible values are `Allow` and `Deny`. Defaults to `Allow`.
+
+* `public_network_access_enabled` - (Optional) Whether to allow traffic over public network. Possible values are `true` and `false`. Defaults to `true`.
+
+-> **Note:** To disable public network access, you must also configure the property `public_network_access_enabled`.
+
+* `trusted_services_allowed` - (Optional) Are Azure Services that are known and trusted for this resource type are allowed to bypass firewall configuration? See [Trusted Microsoft Services](https://github.com/MicrosoftDocs/azure-docs/blob/master/articles/service-bus-messaging/includes/service-bus-trusted-services.md)
+
+* `ip_rules` - (Optional) One or more IP Addresses, or CIDR Blocks which should be able to access the ServiceBus Namespace.
+
+* `network_rules` - (Optional) One or more `network_rules` blocks as defined below.
+
+---
+
+A `network_rules` block supports the following:
+
+* `subnet_id` - (Required) The Subnet ID which should be able to access this ServiceBus Namespace.
+
+* `ignore_missing_vnet_service_endpoint` - (Optional) Should the ServiceBus Namespace Network Rule Set ignore missing Virtual Network Service Endpoint option in the Subnet? Defaults to `false`.
 
 ## Attributes Reference
 
-The following attributes are exported:
+In addition to the Arguments listed above - the following Attributes are exported:
 
 * `id` - The ServiceBus Namespace ID.
 
 * `identity` - An `identity` block as defined below, which contains the Managed Service Identity information for this ServiceBus Namespace.
+
+* `endpoint` - The URL to access the ServiceBus Namespace.
 
 ---
 
@@ -102,18 +133,25 @@ A `identity` block exports the following:
 
 * `tenant_id` - The Tenant ID for the Service Principal associated with the Managed Service Identity of this ServiceBus Namespace.
 
-The following attributes are exported only if there is an authorization rule named
-`RootManageSharedAccessKey` which is created automatically by Azure.
+---
 
-* `default_primary_connection_string` - The primary connection string for the authorization
-    rule `RootManageSharedAccessKey`.
+The following attributes are exported only if there is an authorization rule named `RootManageSharedAccessKey` which is created automatically by Azure.
 
-* `default_secondary_connection_string` - The secondary connection string for the
-    authorization rule `RootManageSharedAccessKey`.
+* `default_primary_connection_string` - The primary connection string for the authorization rule `RootManageSharedAccessKey`.
+
+* `default_secondary_connection_string` - The secondary connection string for the authorization rule `RootManageSharedAccessKey`.
 
 * `default_primary_key` - The primary access key for the authorization rule `RootManageSharedAccessKey`.
 
 * `default_secondary_key` - The secondary access key for the authorization rule `RootManageSharedAccessKey`.
+
+---
+
+A `identity` block exports the following:
+
+* `principal_id` - The Principal ID for the Service Principal associated with the Managed Service Identity of this ServiceBus Namespace.
+
+* `tenant_id` - The Tenant ID for the Service Principal associated with the Managed Service Identity of this ServiceBus Namespace.
 
 ## Timeouts
 

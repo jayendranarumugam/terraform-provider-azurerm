@@ -30,26 +30,20 @@ resource "azurerm_spring_cloud_app" "example" {
   service_name        = azurerm_spring_cloud_service.example.name
 }
 
-resource "azurerm_mysql_server" "example" {
-  name                = "example-mysqlserver"
-  location            = azurerm_resource_group.example.location
-  resource_group_name = azurerm_resource_group.example.name
-
-  administrator_login          = "mysqladminun"
-  administrator_login_password = "H@Sh1CoR3!"
-
-  sku_name   = "B_Gen5_2"
-  storage_mb = 5120
-  version    = "5.7"
-
-  ssl_enforcement_enabled          = true
-  ssl_minimal_tls_version_enforced = "TLS1_2"
+resource "azurerm_mysql_flexible_server" "example" {
+  name                   = "example-fsserver"
+  resource_group_name    = azurerm_resource_group.example.name
+  location               = azurerm_resource_group.example.location
+  administrator_login    = "adminTerraform"
+  administrator_password = "QAZwsx123"
+  sku_name               = "B_Standard_B1s"
+  zone                   = "2"
 }
 
-resource "azurerm_mysql_database" "example" {
+resource "azurerm_mysql_flexible_database" "example" {
   name                = "exampledb"
   resource_group_name = azurerm_resource_group.example.name
-  server_name         = azurerm_mysql_server.example.name
+  server_name         = azurerm_mysql_flexible_server.example.name
   charset             = "utf8"
   collation           = "utf8_unicode_ci"
 }
@@ -57,10 +51,10 @@ resource "azurerm_mysql_database" "example" {
 resource "azurerm_spring_cloud_app_mysql_association" "example" {
   name                = "example-bind"
   spring_cloud_app_id = azurerm_spring_cloud_app.example.id
-  mysql_server_id     = azurerm_mysql_server.example.id
-  database_name       = azurerm_mysql_database.example.name
-  username            = azurerm_mysql_server.example.administrator_login
-  password            = azurerm_mysql_server.example.administrator_login_password
+  mysql_server_id     = azurerm_mysql_flexible_server.example.id
+  database_name       = azurerm_mysql_flexible_database.example.name
+  username            = azurerm_mysql_flexible_server.example.administrator_login
+  password            = azurerm_mysql_flexible_server.example.administrator_login_password
 }
 ```
 
@@ -82,7 +76,7 @@ The following arguments are supported:
 
 ## Attributes Reference
 
-The following attributes are exported:
+In addition to the Arguments listed above - the following Attributes are exported:
 
 * `id` - The ID of the Spring Cloud Application MySQL Association.
 
@@ -100,5 +94,5 @@ The `timeouts` block allows you to specify [timeouts](https://www.terraform.io/l
 Spring Cloud Application MySQL Association can be imported using the `resource id`, e.g.
 
 ```shell
-terraform import azurerm_spring_cloud_app_mysql_association.example /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/resourcegroup1/providers/Microsoft.AppPlatform/Spring/service1/apps/app1/bindings/bind1
+terraform import azurerm_spring_cloud_app_mysql_association.example /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/resourcegroup1/providers/Microsoft.AppPlatform/spring/service1/apps/app1/bindings/bind1
 ```

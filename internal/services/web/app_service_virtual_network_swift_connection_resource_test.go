@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package web_test
 
 import (
@@ -215,6 +218,10 @@ func (AppServiceVirtualNetworkSwiftConnectionResource) basic(data acceptance.Tes
 resource "azurerm_app_service_virtual_network_swift_connection" "test" {
   app_service_id = azurerm_app_service.test.id
   subnet_id      = azurerm_subnet.test1.id
+
+  depends_on = [
+    azurerm_subnet.test2
+  ]
 }
 `, template)
 }

@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package iothub
 
 import (
@@ -6,12 +9,12 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-azure-helpers/lang/response"
+	"github.com/hashicorp/go-azure-helpers/resourcemanager/commonids"
 	"github.com/hashicorp/go-azure-helpers/resourcemanager/commonschema"
 	"github.com/hashicorp/go-azure-helpers/resourcemanager/location"
 	"github.com/hashicorp/go-azure-sdk/resource-manager/deviceupdate/2022-10-01/deviceupdates"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/sdk"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/services/iothub/validate"
-	storageValidate "github.com/hashicorp/terraform-provider-azurerm/internal/services/storage/validate"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/tf/pluginsdk"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/tf/validation"
 )
@@ -75,7 +78,7 @@ func (r IotHubDeviceUpdateInstanceResource) Arguments() map[string]*pluginsdk.Sc
 					"id": {
 						Type:         pluginsdk.TypeString,
 						Required:     true,
-						ValidateFunc: storageValidate.StorageAccountID,
+						ValidateFunc: commonids.ValidateStorageAccountID,
 					},
 				},
 			},
@@ -202,11 +205,7 @@ func (r IotHubDeviceUpdateInstanceResource) Read() sdk.ResourceFunc {
 				state.IotHubId = (*iotHubs)[0].ResourceId
 			}
 
-			diagnosticStorageAccount, err := flattenDiagnosticStorageAccount(properties.DiagnosticStorageProperties, metadata)
-			if err != nil {
-				return err
-			}
-			state.DiagnosticStorageAccount = diagnosticStorageAccount
+			state.DiagnosticStorageAccount = flattenDiagnosticStorageAccount(properties.DiagnosticStorageProperties, metadata)
 
 			diagnosticEnabled := false
 			if properties.EnableDiagnostics != nil {
@@ -260,9 +259,6 @@ func (r IotHubDeviceUpdateInstanceResource) Update() sdk.ResourceFunc {
 				existing.Tags = &model.Tags
 			}
 
-			// todo remove this when https://github.com/hashicorp/pandora/issues/1096 is fixed
-			existing.SystemData = nil
-
 			if err := client.InstancesCreateThenPoll(ctx, *id, *existing); err != nil {
 				return fmt.Errorf("updating %s: %+v", *id, err)
 			}
@@ -307,10 +303,10 @@ func expandDiagnosticStorageAccount(inputList []DiagnosticStorageAccountModel) *
 	return &output
 }
 
-func flattenDiagnosticStorageAccount(input *deviceupdates.DiagnosticStorageProperties, metadata sdk.ResourceMetaData) ([]DiagnosticStorageAccountModel, error) {
+func flattenDiagnosticStorageAccount(input *deviceupdates.DiagnosticStorageProperties, metadata sdk.ResourceMetaData) []DiagnosticStorageAccountModel {
 	var outputList []DiagnosticStorageAccountModel
 	if input == nil {
-		return outputList, nil
+		return outputList
 	}
 
 	output := DiagnosticStorageAccountModel{
@@ -322,5 +318,5 @@ func flattenDiagnosticStorageAccount(input *deviceupdates.DiagnosticStoragePrope
 		output.ConnectionString = connectionString.(string)
 	}
 
-	return append(outputList, output), nil
+	return append(outputList, output)
 }

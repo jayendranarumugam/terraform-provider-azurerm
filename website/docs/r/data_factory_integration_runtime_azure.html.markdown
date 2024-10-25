@@ -43,7 +43,7 @@ The following arguments are supported:
 
 * `description` - (Optional) Integration runtime description.
 
-* `cleanup_enabled` - (Optional) Cluster will not be recycled and it will be used in next data flow activity run until TTL (time to live) is reached if this is set as `false`. Default is `true`.
+* `cleanup_enabled` - (Optional) Cluster will not be recycled and it will be used in next data flow activity run until TTL (time to live) is reached if this is set as `false`. Defaults to `true`.
 
 * `compute_type` - (Optional) Compute type of the cluster which will execute data flow job. Valid values are `General`, `ComputeOptimized` and `MemoryOptimized`. Defaults to `General`.
 
@@ -54,6 +54,15 @@ The following arguments are supported:
 * `virtual_network_enabled` - (Optional) Is Integration Runtime compute provisioned within Managed Virtual Network? Changing this forces a new resource to be created.
 
 ---
+
+## Timeouts
+
+The `timeouts` block allows you to specify [timeouts](https://www.terraform.io/language/resources/syntax#operation-timeouts) for certain actions:
+
+* `read` - (Defaults to 5 minutes) Used when retrieving the Data Factory Integration Runtime Azure.
+* `create` - (Defaults to 30 minutes) Used when creating the Data Factory Integration Runtime Azure.
+* `update` - (Defaults to 30 minutes) Used when updating the Data Factory Integration Runtime Azure.
+* `delete` - (Defaults to 30 minutes) Used when deleting the Data Factory Integration Runtime Azure.
 
 ## Import
 

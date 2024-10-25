@@ -24,10 +24,9 @@ resource "azurerm_resource_group" "example" {
 }
 
 resource "azurerm_route_table" "example" {
-  name                          = "example-route-table"
-  location                      = azurerm_resource_group.example.location
-  resource_group_name           = azurerm_resource_group.example.name
-  disable_bgp_route_propagation = false
+  name                = "example-route-table"
+  location            = azurerm_resource_group.example.location
+  resource_group_name = azurerm_resource_group.example.name
 
   route {
     name           = "route1"
@@ -45,21 +44,23 @@ resource "azurerm_route_table" "example" {
 
 The following arguments are supported:
 
-* `name` - (Required) The name of the route table. Changing this forces a new resource to be created.
+* `name` - (Required) The name of the route table. Changing this forces a new resource to be created. 
 
 * `resource_group_name` - (Required) The name of the resource group in which to create the route table. Changing this forces a new resource to be created.
 
 * `location` - (Required) Specifies the supported Azure location where the resource exists. Changing this forces a new resource to be created.
 
-* `route` - (Optional) [List of objects](/docs/configuration/attr-as-blocks.html) representing routes. Each object accepts the arguments documented below.
+* `route` - (Optional) List of `route` objects representing routes as defined below. Each object accepts the arguments documented below.
 
 -> **NOTE** Since `route` can be configured both inline and via the separate `azurerm_route` resource, we have to explicitly set it to empty slice (`[]`) to remove it.
 
-* `disable_bgp_route_propagation` - (Optional) Boolean flag which controls propagation of routes learned by BGP on that route table. True means disable.
+* `bgp_route_propagation_enabled` - (Optional) Boolean flag which controls propagation of routes learned by BGP on that route table. Defaults to `true`.
 
 * `tags` - (Optional) A mapping of tags to assign to the resource.
 
-Elements of `route` support:
+---
+
+A `route` block support:
 
 * `name` - (Required) The name of the route.
 
@@ -71,7 +72,7 @@ Elements of `route` support:
 
 ## Attributes Reference
 
-The following attributes are exported:
+In addition to the Arguments listed above - the following Attributes are exported:
 
 * `id` - The Route Table ID.
 * `subnets` - The collection of Subnets associated with this route table.

@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package compute
 
 import (
@@ -7,11 +10,15 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hashicorp/go-azure-helpers/lang/pointer"
 	"github.com/hashicorp/go-azure-helpers/lang/response"
+	"github.com/hashicorp/go-azure-helpers/resourcemanager/commonids"
 	"github.com/hashicorp/go-azure-helpers/resourcemanager/commonschema"
 	"github.com/hashicorp/go-azure-helpers/resourcemanager/location"
 	"github.com/hashicorp/go-azure-helpers/resourcemanager/tags"
-	"github.com/hashicorp/go-azure-sdk/resource-manager/compute/2022-03-02/disks"
+	"github.com/hashicorp/go-azure-sdk/resource-manager/compute/2022-03-02/diskaccesses"
+	"github.com/hashicorp/go-azure-sdk/resource-manager/compute/2023-04-02/disks"
+	"github.com/hashicorp/go-azure-sdk/resource-manager/compute/2024-03-01/virtualmachines"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-provider-azurerm/helpers/azure"
 	"github.com/hashicorp/terraform-provider-azurerm/helpers/tf"
@@ -19,7 +26,6 @@ import (
 	"github.com/hashicorp/terraform-provider-azurerm/internal/features"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/locks"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/services/compute/migration"
-	"github.com/hashicorp/terraform-provider-azurerm/internal/services/compute/parse"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/services/compute/validate"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/tf/pluginsdk"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/tf/suppress"
@@ -41,7 +47,7 @@ func resourceManagedDisk() *pluginsdk.Resource {
 		}),
 
 		Importer: pluginsdk.ImporterValidatingResourceId(func(id string) error {
-			_, err := disks.ParseDiskID(id)
+			_, err := commonids.ParseManagedDiskID(id)
 			return err
 		}),
 
@@ -87,7 +93,9 @@ func resourceManagedDisk() *pluginsdk.Resource {
 					string(disks.DiskCreateOptionEmpty),
 					string(disks.DiskCreateOptionFromImage),
 					string(disks.DiskCreateOptionImport),
+					string(disks.DiskCreateOptionImportSecure),
 					string(disks.DiskCreateOptionRestore),
+					string(disks.DiskCreateOptionUpload),
 				}, false),
 			},
 
@@ -102,6 +110,19 @@ func resourceManagedDisk() *pluginsdk.Resource {
 					4096,
 				}),
 				Computed: true,
+			},
+
+			"optimized_frequent_attach_enabled": {
+				Type:     pluginsdk.TypeBool,
+				Optional: true,
+				Default:  false,
+			},
+
+			"performance_plus_enabled": {
+				Type:     pluginsdk.TypeBool,
+				Optional: true,
+				ForceNew: true,
+				Default:  false,
 			},
 
 			"source_uri": {
@@ -121,7 +142,7 @@ func resourceManagedDisk() *pluginsdk.Resource {
 				Type:         pluginsdk.TypeString,
 				Optional:     true,
 				ForceNew:     true, // Not supported by disk update
-				ValidateFunc: azure.ValidateResourceID,
+				ValidateFunc: commonids.ValidateStorageAccountID,
 			},
 
 			"image_reference_id": {
@@ -153,6 +174,13 @@ func resourceManagedDisk() *pluginsdk.Resource {
 				Optional:     true,
 				Computed:     true,
 				ValidateFunc: validate.ManagedDiskSizeGB,
+			},
+
+			"upload_size_bytes": {
+				Type:         pluginsdk.TypeInt,
+				Optional:     true,
+				ForceNew:     true,
+				ValidateFunc: validation.IntAtLeast(1),
 			},
 
 			"disk_iops_read_write": {
@@ -210,7 +238,7 @@ func resourceManagedDisk() *pluginsdk.Resource {
 				// TODO: make this case-sensitive once this bug in the Azure API has been fixed:
 				//       https://github.com/Azure/azure-rest-api-specs/issues/14192
 				DiffSuppressFunc: suppress.CaseDifference,
-				ValidateFunc:     azure.ValidateResourceID,
+				ValidateFunc:     diskaccesses.ValidateDiskAccessID,
 			},
 
 			"public_network_access_enabled": {
@@ -300,7 +328,7 @@ func resourceManagedDiskCreate(d *pluginsdk.ResourceData, meta interface{}) erro
 	name := d.Get("name").(string)
 	resourceGroup := d.Get("resource_group_name").(string)
 
-	id := disks.NewDiskID(subscriptionId, d.Get("resource_group_name").(string), d.Get("name").(string))
+	id := commonids.NewManagedDiskID(subscriptionId, d.Get("resource_group_name").(string), d.Get("name").(string))
 	if d.IsNewResource() {
 		existing, err := client.Get(ctx, id)
 		if err != nil {
@@ -326,9 +354,11 @@ func resourceManagedDiskCreate(d *pluginsdk.ResourceData, meta interface{}) erro
 
 	props := &disks.DiskProperties{
 		CreationData: disks.CreationData{
-			CreateOption: createOption,
+			CreateOption:    createOption,
+			PerformancePlus: pointer.To(d.Get("performance_plus_enabled").(bool)),
 		},
-		OsType: &osType,
+		OptimizedForFrequentAttach: pointer.To(d.Get("optimized_frequent_attach_enabled").(bool)),
+		OsType:                     &osType,
 		Encryption: &disks.Encryption{
 			Type: &encryptionTypePlatformKey,
 		},
@@ -379,15 +409,15 @@ func resourceManagedDiskCreate(d *pluginsdk.ResourceData, meta interface{}) erro
 		return fmt.Errorf("[ERROR] disk_iops_read_write, disk_mbps_read_write, disk_iops_read_only, disk_mbps_read_only and logical_sector_size are only available for UltraSSD disks and PremiumV2 disks")
 	}
 
-	if createOption == disks.DiskCreateOptionImport {
+	if createOption == disks.DiskCreateOptionImport || createOption == disks.DiskCreateOptionImportSecure {
 		sourceUri := d.Get("source_uri").(string)
 		if sourceUri == "" {
-			return fmt.Errorf("`source_uri` must be specified when `create_option` is set to `Import`")
+			return fmt.Errorf("`source_uri` must be specified when `create_option` is set to `Import` or `ImportSecure`")
 		}
 
 		storageAccountId := d.Get("storage_account_id").(string)
 		if storageAccountId == "" {
-			return fmt.Errorf("`storage_account_id` must be specified when `create_option` is set to `Import`")
+			return fmt.Errorf("`storage_account_id` must be specified when `create_option` is set to `Import` or `ImportSecure`")
 		}
 
 		props.CreationData.StorageAccountId = utils.String(storageAccountId)
@@ -412,6 +442,14 @@ func resourceManagedDiskCreate(d *pluginsdk.ResourceData, meta interface{}) erro
 			}
 		} else {
 			return fmt.Errorf("`image_reference_id` or `gallery_image_reference_id` must be specified when `create_option` is set to `FromImage`")
+		}
+	}
+
+	if createOption == disks.DiskCreateOptionUpload {
+		if uploadSizeBytes := d.Get("upload_size_bytes").(int); uploadSizeBytes != 0 {
+			props.CreationData.UploadSizeBytes = utils.Int64(int64(uploadSizeBytes))
+		} else {
+			return fmt.Errorf("`upload_size_bytes` must be specified when `create_option` is set to `Upload`")
 		}
 	}
 
@@ -474,8 +512,9 @@ func resourceManagedDiskCreate(d *pluginsdk.ResourceData, meta interface{}) erro
 		switch createOption {
 		case disks.DiskCreateOptionFromImage:
 		case disks.DiskCreateOptionImport:
+		case disks.DiskCreateOptionImportSecure:
 		default:
-			return fmt.Errorf("trusted_launch_enabled cannot be set to true with create_option %q. Supported Create Options when Trusted Launch is enabled are FromImage, Import", createOption)
+			return fmt.Errorf("trusted_launch_enabled cannot be set to true with create_option %q. Supported Create Options when Trusted Launch is enabled are `FromImage`, `Import`, `ImportSecure`", createOption)
 		}
 	}
 
@@ -489,8 +528,9 @@ func resourceManagedDiskCreate(d *pluginsdk.ResourceData, meta interface{}) erro
 		switch createOption {
 		case disks.DiskCreateOptionFromImage:
 		case disks.DiskCreateOptionImport:
+		case disks.DiskCreateOptionImportSecure:
 		default:
-			return fmt.Errorf("`security_type` can only be specified when `create_option` is set to `FromImage` or `Import`")
+			return fmt.Errorf("`security_type` can only be specified when `create_option` is set to `FromImage`, `Import` or `ImportSecure`")
 		}
 
 		if disks.DiskSecurityTypesConfidentialVMDiskEncryptedWithCustomerKey == disks.DiskSecurityTypes(securityType) && secureVMDiskEncryptionId == "" {
@@ -581,8 +621,10 @@ func resourceManagedDiskUpdate(d *pluginsdk.ResourceData, meta interface{}) erro
 	diskSizeGB := d.Get("disk_size_gb").(int)
 	onDemandBurstingEnabled := d.Get("on_demand_bursting_enabled").(bool)
 	shouldShutDown := false
+	shouldDetach := false
+	expandedDisk := virtualmachines.DataDisk{}
 
-	id, err := disks.ParseDiskID(d.Id())
+	id, err := commonids.ParseManagedDiskID(d.Id())
 	if err != nil {
 		return err
 	}
@@ -590,7 +632,7 @@ func resourceManagedDiskUpdate(d *pluginsdk.ResourceData, meta interface{}) erro
 	disk, err := client.Get(ctx, *id)
 	if err != nil {
 		if response.WasNotFound(disk.HttpResponse) {
-			return fmt.Errorf("Managed Disk %q (Resource Group %q) was not found", name, resourceGroup)
+			return fmt.Errorf("managed disk %q (Resource Group %q) was not found", name, resourceGroup)
 		}
 
 		return fmt.Errorf("making Read request on Azure Managed Disk %q (Resource Group %q): %+v", name, resourceGroup, err)
@@ -674,6 +716,10 @@ func resourceManagedDiskUpdate(d *pluginsdk.ResourceData, meta interface{}) erro
 		return fmt.Errorf("[ERROR] disk_iops_read_write, disk_mbps_read_write, disk_iops_read_only and disk_mbps_read_only are only available for UltraSSD disks and PremiumV2 disks")
 	}
 
+	if d.HasChange("optimized_frequent_attach_enabled") {
+		diskUpdate.Properties.OptimizedForFrequentAttach = pointer.To(d.Get("optimized_frequent_attach_enabled").(bool))
+	}
+
 	if d.HasChange("os_type") {
 		operatingSystemType := disks.OperatingSystemTypes(d.Get("os_type").(string))
 		diskUpdate.Properties.OsType = &operatingSystemType
@@ -683,15 +729,15 @@ func resourceManagedDiskUpdate(d *pluginsdk.ResourceData, meta interface{}) erro
 		if oldSize, newSize := d.GetChange("disk_size_gb"); newSize.(int) > oldSize.(int) {
 			canBeResizedWithoutDowntime := false
 			if meta.(*clients.Client).Features.ManagedDisk.ExpandWithoutDowntime {
-				diskSupportsNoDowntimeResize, err := determineIfDataDiskSupportsNoDowntimeResize(disk.Model, oldSize.(int), newSize.(int))
-				if err != nil {
-					return fmt.Errorf("determining if the Disk supports no-downtime-resize: %+v", err)
-				}
+				diskSupportsNoDowntimeResize := determineIfDataDiskSupportsNoDowntimeResize(disk.Model, oldSize.(int), newSize.(int))
 
 				vmSkuSupportsNoDowntimeResize, err := determineIfVirtualMachineSkuSupportsNoDowntimeResize(ctx, disk.Model.ManagedBy, virtualMachinesClient, skusClient)
 				if err != nil {
 					return fmt.Errorf("determining if the Virtual Machine the Disk is attached to supports no-downtime-resize: %+v", err)
 				}
+
+				// If a disk is 4 TiB or less, you can't expand it beyond 4 TiB without detaching it from the VM.
+				shouldDetach = oldSize.(int) < 4096 && newSize.(int) >= 4096
 
 				canBeResizedWithoutDowntime = *vmSkuSupportsNoDowntimeResize && *diskSupportsNoDowntimeResize
 			}
@@ -722,7 +768,7 @@ func resourceManagedDiskUpdate(d *pluginsdk.ResourceData, meta interface{}) erro
 				DiskEncryptionSetId: utils.String(diskEncryptionSetId),
 			}
 		} else {
-			return fmt.Errorf("Once a customer-managed key is used, you can’t change the selection back to a platform-managed key")
+			return fmt.Errorf("once a customer-managed key is used, you can’t change the selection back to a platform-managed key")
 		}
 	}
 
@@ -780,26 +826,30 @@ func resourceManagedDiskUpdate(d *pluginsdk.ResourceData, meta interface{}) erro
 
 	// if we are attached to a VM we bring down the VM as necessary for the operations which are not allowed while it's online
 	if shouldShutDown {
-		virtualMachine, err := parse.VirtualMachineID(*disk.Model.ManagedBy)
+		virtualMachineId, err := virtualmachines.ParseVirtualMachineID(*disk.Model.ManagedBy)
 		if err != nil {
 			return fmt.Errorf("parsing VMID %q for disk attachment: %+v", *disk.Model.ManagedBy, err)
 		}
 		// check instanceView State
-		vmClient := meta.(*clients.Client).Compute.VMClient
 
 		locks.ByName(name, VirtualMachineResourceName)
 		defer locks.UnlockByName(name, VirtualMachineResourceName)
 
-		instanceView, err := vmClient.InstanceView(ctx, virtualMachine.ResourceGroup, virtualMachine.Name)
+		vm, err := virtualMachinesClient.Get(ctx, *virtualMachineId, virtualmachines.DefaultGetOperationOptions())
 		if err != nil {
-			return fmt.Errorf("retrieving InstanceView for Virtual Machine %q (Resource Group %q): %+v", virtualMachine.Name, virtualMachine.ResourceGroup, err)
+			return fmt.Errorf("retrieving %s: %+v", virtualMachineId, err)
 		}
 
-		shouldTurnBackOn := virtualMachineShouldBeStarted(instanceView)
+		instanceView, err := virtualMachinesClient.InstanceView(ctx, *virtualMachineId)
+		if err != nil {
+			return fmt.Errorf("retrieving InstanceView for %s: %+v", virtualMachineId, err)
+		}
+
+		shouldTurnBackOn := virtualMachineShouldBeStarted(instanceView.Model)
 		shouldDeallocate := true
 
-		if instanceView.Statuses != nil {
-			for _, status := range *instanceView.Statuses {
+		if instanceView.Model != nil && instanceView.Model.Statuses != nil {
+			for _, status := range *instanceView.Model.Statuses {
 				if status.Code == nil {
 					continue
 				}
@@ -827,36 +877,56 @@ func resourceManagedDiskUpdate(d *pluginsdk.ResourceData, meta interface{}) erro
 			}
 		}
 
+		// Detach
+		if shouldDetach {
+			dataDisks := make([]virtualmachines.DataDisk, 0)
+			if vmModel := vm.Model; vmModel != nil && vmModel.Properties != nil && vmModel.Properties.StorageProfile != nil && vmModel.Properties.StorageProfile.DataDisks != nil {
+				for _, dataDisk := range *vmModel.Properties.StorageProfile.DataDisks {
+					// since this field isn't (and shouldn't be) case-sensitive; we're deliberately not using `strings.EqualFold`
+					if dataDisk.Name != nil && *dataDisk.Name != id.DiskName {
+						dataDisks = append(dataDisks, dataDisk)
+					} else {
+						if dataDisk.Caching != nil && *dataDisk.Caching != virtualmachines.CachingTypesNone {
+							return fmt.Errorf("`disk_size_gb` can't be increased above 4095GB when `caching` is set to anything other than `None`")
+						}
+						expandedDisk = dataDisk
+					}
+				}
+
+				vmModel.Properties.StorageProfile.DataDisks = &dataDisks
+
+				// fixes #2485
+				vmModel.Identity = nil
+				// fixes #1600
+				vmModel.Resources = nil
+
+				if err := virtualMachinesClient.CreateOrUpdateThenPoll(ctx, *virtualMachineId, *vm.Model, virtualmachines.DefaultCreateOrUpdateOperationOptions()); err != nil {
+					return fmt.Errorf("removing Disk %q from %s : %+v", id.DiskName, virtualMachineId, err)
+				}
+			}
+		}
+
 		// Shutdown
 		if shouldShutDown {
-			log.Printf("[DEBUG] Shutting Down Virtual Machine %q (Resource Group %q)..", virtualMachine.Name, virtualMachine.ResourceGroup)
-			forceShutdown := false
-			future, err := vmClient.PowerOff(ctx, virtualMachine.ResourceGroup, virtualMachine.Name, utils.Bool(forceShutdown))
-			if err != nil {
-				return fmt.Errorf("sending Power Off to Virtual Machine %q (Resource Group %q): %+v", virtualMachine.Name, virtualMachine.ResourceGroup, err)
+			log.Printf("[DEBUG] Shutting Down %s", virtualMachineId)
+			options := virtualmachines.DefaultPowerOffOperationOptions()
+			options.SkipShutdown = pointer.To(false)
+			if err := virtualMachinesClient.PowerOffThenPoll(ctx, *virtualMachineId, options); err != nil {
+				return fmt.Errorf("sending Power Off to %s: %+v", virtualMachineId, err)
+
 			}
 
-			if err := future.WaitForCompletionRef(ctx, client.Client); err != nil {
-				return fmt.Errorf("waiting for Power Off of Virtual Machine %q (Resource Group %q): %+v", virtualMachine.Name, virtualMachine.ResourceGroup, err)
-			}
-
-			log.Printf("[DEBUG] Shut Down Virtual Machine %q (Resource Group %q)..", virtualMachine.Name, virtualMachine.ResourceGroup)
+			log.Printf("[DEBUG] Shut Down %s", virtualMachineId)
 		}
 
 		// De-allocate
 		if shouldDeallocate {
-			log.Printf("[DEBUG] Deallocating Virtual Machine %q (Resource Group %q)..", virtualMachine.Name, virtualMachine.ResourceGroup)
+			log.Printf("[DEBUG] Deallocating %s.", virtualMachineId)
 			// Upgrading to 2021-07-01 exposed a new hibernate paramater to the Deallocate method
-			deAllocFuture, err := vmClient.Deallocate(ctx, virtualMachine.ResourceGroup, virtualMachine.Name, utils.Bool(false))
-			if err != nil {
-				return fmt.Errorf("Deallocating to Virtual Machine %q (Resource Group %q): %+v", virtualMachine.Name, virtualMachine.ResourceGroup, err)
+			if err := virtualMachinesClient.DeallocateThenPoll(ctx, *virtualMachineId, virtualmachines.DefaultDeallocateOperationOptions()); err != nil {
+				return fmt.Errorf("deallocating to %s: %+v", virtualMachineId, err)
 			}
-
-			if err := deAllocFuture.WaitForCompletionRef(ctx, client.Client); err != nil {
-				return fmt.Errorf("waiting for Deallocation of Virtual Machine %q (Resource Group %q): %+v", virtualMachine.Name, virtualMachine.ResourceGroup, err)
-			}
-
-			log.Printf("[DEBUG] Deallocated Virtual Machine %q (Resource Group %q)..", virtualMachine.Name, virtualMachine.ResourceGroup)
+			log.Printf("[DEBUG] Deallocated %s", virtualMachineId)
 		}
 
 		// Update Disk
@@ -865,18 +935,34 @@ func resourceManagedDiskUpdate(d *pluginsdk.ResourceData, meta interface{}) erro
 			return fmt.Errorf("updating Managed Disk %q (Resource Group %q): %+v", name, resourceGroup, err)
 		}
 
+		// Reattach DataDisk
+		if shouldDetach && vm.Model.Properties.StorageProfile != nil {
+			disks := *vm.Model.Properties.StorageProfile.DataDisks
+
+			expandedDisk.DiskSizeGB = diskUpdate.Properties.DiskSizeGB
+			disks = append(disks, expandedDisk)
+
+			vm.Model.Properties.StorageProfile.DataDisks = &disks
+
+			// fixes #2485
+			vm.Model.Identity = nil
+			// fixes #1600
+			vm.Model.Resources = nil
+
+			// if there's too many disks we get a 409 back with:
+			//   `The maximum number of data disks allowed to be attached to a VM of this size is 1.`
+			// which we're intentionally not wrapping, since the errors good.
+			if err := virtualMachinesClient.CreateOrUpdateThenPoll(ctx, *virtualMachineId, *vm.Model, virtualmachines.DefaultCreateOrUpdateOperationOptions()); err != nil {
+				return fmt.Errorf("updating %s to reattach Disk %q: %+v", virtualMachineId, name, err)
+			}
+		}
+
 		if shouldTurnBackOn && (shouldShutDown || shouldDeallocate) {
-			log.Printf("[DEBUG] Starting Linux Virtual Machine %q (Resource Group %q)..", virtualMachine.Name, virtualMachine.ResourceGroup)
-			future, err := vmClient.Start(ctx, virtualMachine.ResourceGroup, virtualMachine.Name)
-			if err != nil {
-				return fmt.Errorf("starting Virtual Machine %q (Resource Group %q): %+v", virtualMachine.Name, virtualMachine.ResourceGroup, err)
+			log.Printf("[DEBUG] Starting %s", virtualMachineId)
+			if err := virtualMachinesClient.StartThenPoll(ctx, *virtualMachineId); err != nil {
+				return fmt.Errorf("starting %s: %+v", virtualMachineId, err)
 			}
-
-			if err := future.WaitForCompletionRef(ctx, client.Client); err != nil {
-				return fmt.Errorf("waiting for start of Virtual Machine %q (Resource Group %q): %+v", virtualMachine.Name, virtualMachine.ResourceGroup, err)
-			}
-
-			log.Printf("[DEBUG] Started Virtual Machine %q (Resource Group %q)..", virtualMachine.Name, virtualMachine.ResourceGroup)
+			log.Printf("[DEBUG] Started %s", virtualMachineId)
 		}
 	} else { // otherwise, just update it
 		err := client.UpdateThenPoll(ctx, *id, diskUpdate)
@@ -893,7 +979,7 @@ func resourceManagedDiskRead(d *pluginsdk.ResourceData, meta interface{}) error 
 	ctx, cancel := timeouts.ForRead(meta.(*clients.Client).StopContext, d)
 	defer cancel()
 
-	id, err := disks.ParseDiskID(d.Id())
+	id, err := commonids.ParseManagedDiskID(d.Id())
 	if err != nil {
 		return err
 	}
@@ -944,22 +1030,25 @@ func resourceManagedDiskRead(d *pluginsdk.ResourceData, meta interface{}) error 
 			d.Set("gallery_image_reference_id", galleryImageReferenceId)
 			d.Set("image_reference_id", imageReferenceId)
 
+			d.Set("performance_plus_enabled", creationData.PerformancePlus)
 			d.Set("source_resource_id", creationData.SourceResourceId)
 			d.Set("source_uri", creationData.SourceUri)
 			d.Set("storage_account_id", creationData.StorageAccountId)
+			d.Set("upload_size_bytes", creationData.UploadSizeBytes)
 
 			d.Set("disk_size_gb", props.DiskSizeGB)
 			d.Set("disk_iops_read_write", props.DiskIOPSReadWrite)
 			d.Set("disk_mbps_read_write", props.DiskMBpsReadWrite)
 			d.Set("disk_iops_read_only", props.DiskIOPSReadOnly)
 			d.Set("disk_mbps_read_only", props.DiskMBpsReadOnly)
-			d.Set("os_type", props.OsType)
+			d.Set("optimized_frequent_attach_enabled", props.OptimizedForFrequentAttach)
+			d.Set("os_type", string(pointer.From(props.OsType)))
 			d.Set("tier", props.Tier)
 			d.Set("max_shares", props.MaxShares)
-			d.Set("hyper_v_generation", props.HyperVGeneration)
+			d.Set("hyper_v_generation", string(pointer.From(props.HyperVGeneration)))
 
 			if networkAccessPolicy := props.NetworkAccessPolicy; *networkAccessPolicy != disks.NetworkAccessPolicyAllowAll {
-				d.Set("network_access_policy", props.NetworkAccessPolicy)
+				d.Set("network_access_policy", string(pointer.From(props.NetworkAccessPolicy)))
 			}
 			d.Set("disk_access_id", props.DiskAccessId)
 
@@ -1013,7 +1102,7 @@ func resourceManagedDiskDelete(d *pluginsdk.ResourceData, meta interface{}) erro
 	ctx, cancel := timeouts.ForDelete(meta.(*clients.Client).StopContext, d)
 	defer cancel()
 
-	id, err := disks.ParseDiskID(d.Id())
+	id, err := commonids.ParseManagedDiskID(d.Id())
 	if err != nil {
 		return err
 	}

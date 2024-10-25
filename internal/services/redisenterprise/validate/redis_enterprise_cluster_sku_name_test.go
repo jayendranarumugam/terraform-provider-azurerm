@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package validate
 
 import "testing"
@@ -56,6 +59,11 @@ func TestRedisEnterpriseClusterSkuName(t *testing.T) {
 		{
 			name:     "Valid sku and capacity",
 			input:    "EnterpriseFlash_F1500-15",
+			expected: true,
+		},
+		{
+			name:     "Valid sku and capacity",
+			input:    "Enterprise_E1-2",
 			expected: true,
 		},
 	}

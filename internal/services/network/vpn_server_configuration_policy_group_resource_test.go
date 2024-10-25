@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package network_test
 
 import (
@@ -5,13 +8,12 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/go-azure-helpers/lang/pointer"
+	"github.com/hashicorp/go-azure-sdk/resource-manager/network/2023-11-01/virtualwans"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/acceptance"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/acceptance/check"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/clients"
-	"github.com/hashicorp/terraform-provider-azurerm/internal/services/network/parse"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/tf/pluginsdk"
-	"github.com/hashicorp/terraform-provider-azurerm/utils"
 )
 
 type VPNServerConfigurationPolicyGroupResource struct{}
@@ -20,10 +22,10 @@ func TestAccVPNServerConfigurationPolicyGroup_basic(t *testing.T) {
 	data := acceptance.BuildTestData(t, "azurerm_vpn_server_configuration_policy_group", "test")
 	r := VPNServerConfigurationPolicyGroupResource{}
 
-	data.ResourceTest(t, r, []resource.TestStep{
+	data.ResourceTest(t, r, []acceptance.TestStep{
 		{
 			Config: r.basic(data),
-			Check: resource.ComposeTestCheckFunc(
+			Check: acceptance.ComposeTestCheckFunc(
 				check.That(data.ResourceName).ExistsInAzure(r),
 			),
 		},
@@ -35,10 +37,10 @@ func TestAccVPNServerConfigurationPolicyGroup_complete(t *testing.T) {
 	data := acceptance.BuildTestData(t, "azurerm_vpn_server_configuration_policy_group", "test")
 	r := VPNServerConfigurationPolicyGroupResource{}
 
-	data.ResourceTest(t, r, []resource.TestStep{
+	data.ResourceTest(t, r, []acceptance.TestStep{
 		{
 			Config: r.complete(data),
-			Check: resource.ComposeTestCheckFunc(
+			Check: acceptance.ComposeTestCheckFunc(
 				check.That(data.ResourceName).ExistsInAzure(r),
 			),
 		},
@@ -50,17 +52,17 @@ func TestAccVPNServerConfigurationPolicyGroup_update(t *testing.T) {
 	data := acceptance.BuildTestData(t, "azurerm_vpn_server_configuration_policy_group", "test")
 	r := VPNServerConfigurationPolicyGroupResource{}
 
-	data.ResourceTest(t, r, []resource.TestStep{
+	data.ResourceTest(t, r, []acceptance.TestStep{
 		{
 			Config: r.complete(data),
-			Check: resource.ComposeTestCheckFunc(
+			Check: acceptance.ComposeTestCheckFunc(
 				check.That(data.ResourceName).ExistsInAzure(r),
 			),
 		},
 		data.ImportStep(),
 		{
 			Config: r.update(data),
-			Check: resource.ComposeTestCheckFunc(
+			Check: acceptance.ComposeTestCheckFunc(
 				check.That(data.ResourceName).ExistsInAzure(r),
 			),
 		},
@@ -72,10 +74,10 @@ func TestAccVPNServerConfigurationPolicyGroup_requiresImport(t *testing.T) {
 	data := acceptance.BuildTestData(t, "azurerm_vpn_server_configuration_policy_group", "test")
 	r := VPNServerConfigurationPolicyGroupResource{}
 
-	data.ResourceTest(t, r, []resource.TestStep{
+	data.ResourceTest(t, r, []acceptance.TestStep{
 		{
 			Config: r.basic(data),
-			Check: resource.ComposeTestCheckFunc(
+			Check: acceptance.ComposeTestCheckFunc(
 				check.That(data.ResourceName).ExistsInAzure(r),
 			),
 		},
@@ -83,18 +85,33 @@ func TestAccVPNServerConfigurationPolicyGroup_requiresImport(t *testing.T) {
 	})
 }
 
+func TestAccVPNServerConfigurationPolicyGroup_multiplePolicyGroups(t *testing.T) {
+	data := acceptance.BuildTestData(t, "azurerm_vpn_server_configuration_policy_group", "test")
+	r := VPNServerConfigurationPolicyGroupResource{}
+
+	data.ResourceTest(t, r, []acceptance.TestStep{
+		{
+			Config: r.multiplePolicyGroups(data),
+			Check: acceptance.ComposeTestCheckFunc(
+				check.That(data.ResourceName).ExistsInAzure(r),
+			),
+		},
+		data.ImportStep(),
+	})
+}
+
 func (r VPNServerConfigurationPolicyGroupResource) Exists(ctx context.Context, client *clients.Client, state *pluginsdk.InstanceState) (*bool, error) {
-	id, err := parse.VpnServerConfigurationPolicyGroupID(state.ID)
+	id, err := virtualwans.ParseConfigurationPolicyGroupID(state.ID)
 	if err != nil {
 		return nil, err
 	}
 
-	resp, err := client.Network.ConfigurationPolicyGroupClient.Get(ctx, id.ResourceGroup, id.VpnServerConfigurationName, id.ConfigurationPolicyGroupName)
+	resp, err := client.Network.VirtualWANs.ConfigurationPolicyGroupsGet(ctx, *id)
 	if err != nil {
 		return nil, fmt.Errorf("reading Vpn Server Configuration Policy Group (%s): %+v", id, err)
 	}
 
-	return utils.Bool(resp.ID != nil), nil
+	return pointer.To(resp.Model != nil), nil
 }
 
 func (r VPNServerConfigurationPolicyGroupResource) basic(data acceptance.TestData) string {
@@ -167,6 +184,51 @@ resource "azurerm_vpn_server_configuration_policy_group" "test" {
   }
 }
 `, r.template(data), data.RandomInteger)
+}
+
+func (r VPNServerConfigurationPolicyGroupResource) multiplePolicyGroups(data acceptance.TestData) string {
+	return fmt.Sprintf(`
+%s
+
+resource "azurerm_vpn_server_configuration_policy_group" "test" {
+  name                        = "acctestVPNSCPG-%d"
+  vpn_server_configuration_id = azurerm_vpn_server_configuration.test.id
+  is_default                  = true
+  priority                    = 1
+
+  policy {
+    name  = "policy1"
+    type  = "RadiusAzureGroupId"
+    value = "6ad1bd08"
+  }
+}
+
+resource "azurerm_vpn_server_configuration_policy_group" "test2" {
+  name                        = "acctestVPNSCPG2-%d"
+  vpn_server_configuration_id = azurerm_vpn_server_configuration.test.id
+  is_default                  = false
+  priority                    = 2
+
+  policy {
+    name  = "policy2"
+    type  = "CertificateGroupId"
+    value = "red.com"
+  }
+}
+
+resource "azurerm_vpn_server_configuration_policy_group" "test3" {
+  name                        = "acctestVPNSCPG3-%d"
+  vpn_server_configuration_id = azurerm_vpn_server_configuration.test.id
+  is_default                  = false
+  priority                    = 3
+
+  policy {
+    name  = "policy3"
+    type  = "CertificateGroupId"
+    value = "green.com"
+  }
+}
+`, r.template(data), data.RandomInteger, data.RandomInteger, data.RandomInteger)
 }
 
 func (r VPNServerConfigurationPolicyGroupResource) template(data acceptance.TestData) string {

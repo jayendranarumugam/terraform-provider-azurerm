@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package redis_test
 
 import (
@@ -5,10 +8,10 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/hashicorp/go-azure-sdk/resource-manager/redis/2024-03-01/redis"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/acceptance"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/acceptance/check"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/clients"
-	"github.com/hashicorp/terraform-provider-azurerm/internal/services/redis/parse"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/tf/pluginsdk"
 	"github.com/hashicorp/terraform-provider-azurerm/utils"
 )
@@ -45,17 +48,17 @@ func TestAccRedisLinkedServer_requiresImport(t *testing.T) {
 }
 
 func (t RedisLinkedServerResource) Exists(ctx context.Context, clients *clients.Client, state *pluginsdk.InstanceState) (*bool, error) {
-	id, err := parse.LinkedServerID(state.ID)
+	id, err := redis.ParseLinkedServerID(state.ID)
 	if err != nil {
 		return nil, err
 	}
 
-	resp, err := clients.Redis.LinkedServerClient.Get(ctx, id.ResourceGroup, id.RediName, id.Name)
+	resp, err := clients.Redis.Redis.LinkedServerGet(ctx, *id)
 	if err != nil {
-		return nil, fmt.Errorf("reading Redis Linked Server (%s): %+v", id.String(), err)
+		return nil, fmt.Errorf("retrieving %s: %+v", *id, err)
 	}
 
-	return utils.Bool(resp.LinkedServerProperties != nil), nil
+	return utils.Bool(resp.Model != nil), nil
 }
 
 func (RedisLinkedServerResource) basic(data acceptance.TestData) string {
@@ -70,13 +73,13 @@ resource "azurerm_resource_group" "pri" {
 }
 
 resource "azurerm_redis_cache" "pri" {
-  name                = "acctestRedispri%d"
-  location            = azurerm_resource_group.pri.location
-  resource_group_name = azurerm_resource_group.pri.name
-  capacity            = 1
-  family              = "P"
-  sku_name            = "Premium"
-  enable_non_ssl_port = false
+  name                 = "acctestRedispri%d"
+  location             = azurerm_resource_group.pri.location
+  resource_group_name  = azurerm_resource_group.pri.name
+  capacity             = 1
+  family               = "P"
+  sku_name             = "Premium"
+  non_ssl_port_enabled = false
 
   redis_configuration {
     maxmemory_reserved = 642
@@ -91,13 +94,13 @@ resource "azurerm_resource_group" "sec" {
 }
 
 resource "azurerm_redis_cache" "sec" {
-  name                = "acctestRedissec%d"
-  location            = azurerm_resource_group.sec.location
-  resource_group_name = azurerm_resource_group.sec.name
-  capacity            = 1
-  family              = "P"
-  sku_name            = "Premium"
-  enable_non_ssl_port = false
+  name                 = "acctestRedissec%d"
+  location             = azurerm_resource_group.sec.location
+  resource_group_name  = azurerm_resource_group.sec.name
+  capacity             = 1
+  family               = "P"
+  sku_name             = "Premium"
+  non_ssl_port_enabled = false
 
   redis_configuration {
     maxmemory_reserved = 642

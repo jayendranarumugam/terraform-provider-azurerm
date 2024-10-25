@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package loadbalancer_test
 
 import (
@@ -16,7 +19,7 @@ func TestAccAzureRMDataSourceLoadBalancer_basic(t *testing.T) {
 		{
 			Config: d.dataSourceBasic(data),
 			Check: acceptance.ComposeTestCheckFunc(
-				check.That(data.ResourceName).Key("sku").HasValue("Basic"),
+				check.That(data.ResourceName).Key("sku").HasValue("Standard"),
 				check.That(data.ResourceName).Key("location").Exists(),
 				check.That(data.ResourceName).Key("tags.Environment").HasValue("production"),
 				check.That(data.ResourceName).Key("tags.Purpose").HasValue("AcceptanceTests"),

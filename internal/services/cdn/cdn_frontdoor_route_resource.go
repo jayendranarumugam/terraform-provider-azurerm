@@ -1,10 +1,13 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package cdn
 
 import (
 	"fmt"
 	"time"
 
-	"github.com/Azure/azure-sdk-for-go/services/cdn/mgmt/2021-06-01/cdn"
+	"github.com/Azure/azure-sdk-for-go/services/cdn/mgmt/2021-06-01/cdn" // nolint: staticcheck
 	"github.com/hashicorp/terraform-provider-azurerm/helpers/tf"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/clients"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/locks"
@@ -254,7 +257,7 @@ func resourceCdnFrontDoorRouteCreate(d *pluginsdk.ResourceData, meta interface{}
 			return err
 		}
 
-		if err := validateRoutesCustomDomainProfile(normalizedCustomDomains, id.RouteName, id.ProfileName); err != nil {
+		if err := validateRoutesCustomDomainProfile(normalizedCustomDomains, id.ProfileName); err != nil {
 			return err
 		}
 	}
@@ -447,16 +450,17 @@ func resourceCdnFrontDoorRouteUpdate(d *pluginsdk.ResourceData, meta interface{}
 			return err
 		}
 
-		if err := validateRoutesCustomDomainProfile(customDomains, id.RouteName, id.ProfileName); err != nil {
+		if err := validateRoutesCustomDomainProfile(customDomains, id.ProfileName); err != nil {
 			return err
 		}
 	}
 
-	// NOTE: You need to always pass these two on update else you will
-	// disable your cache and disassociate your custom domains...
+	// NOTE: You need to always pass these three on update else you will
+	// disable your cache, disassociate your custom domains or remove your origin path...
 	updateProps := azuresdkhacks.RouteUpdatePropertiesParameters{
 		CustomDomains:      existing.RouteProperties.CustomDomains,
 		CacheConfiguration: existing.RouteProperties.CacheConfiguration,
+		OriginPath:         existing.RouteProperties.OriginPath,
 	}
 
 	if d.HasChange("cache") {
@@ -488,7 +492,12 @@ func resourceCdnFrontDoorRouteUpdate(d *pluginsdk.ResourceData, meta interface{}
 	}
 
 	if d.HasChange("cdn_frontdoor_origin_path") {
-		updateProps.OriginPath = utils.String(d.Get("cdn_frontdoor_origin_path").(string))
+		updateProps.OriginPath = nil
+
+		originPath := d.Get("cdn_frontdoor_origin_path").(string)
+		if originPath != "" {
+			updateProps.OriginPath = utils.String(originPath)
+		}
 	}
 
 	if d.HasChange("patterns_to_match") {

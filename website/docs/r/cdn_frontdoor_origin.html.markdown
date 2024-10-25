@@ -126,6 +126,23 @@ resource "azurerm_cdn_frontdoor_profile" "example" {
   sku_name            = "Premium_AzureFrontDoor"
 }
 
+resource "azurerm_cdn_frontdoor_origin" example {
+  name                           = "origin-example"
+  cdn_frontdoor_origin_group_id  = azurerm_cdn_frontdoor_origin_group.example.id
+  enabled                        = true
+  host_name                      = "example.com"
+  origin_host_header             = "example.com"
+  priority                       = 1
+  weight                         = 1000
+  certificate_name_check_enabled = false
+
+  private_link {
+    request_message        = "Request access for Private Link Origin CDN Frontdoor"
+    location               = azurerm_resource_group.example.location
+    private_link_target_id = azurerm_private_link_service.example.id
+  }
+}
+
 resource "azurerm_cdn_frontdoor_origin_group" "example" {
   name                     = "group-example"
   cdn_frontdoor_profile_id = azurerm_cdn_frontdoor_profile.example.id
@@ -178,7 +195,7 @@ resource "azurerm_private_link_service" "example" {
   location            = azurerm_resource_group.example.location
 
   visibility_subscription_ids                 = [data.azurerm_client_config.current.subscription_id]
-  load_balancer_frontend_ip_configuration_ids = [azurerm_lb.example.frontend_ip_configuration.0.id]
+  load_balancer_frontend_ip_configuration_ids = [azurerm_lb.example.frontend_ip_configuration[0].id]
 
   nat_ip_configuration {
     name                       = "primary"
@@ -206,8 +223,6 @@ The following arguments are supported:
 
 * `enabled` - (Optional) Should the origin be enabled? Possible values are `true` or `false`. Defaults to `true`.
 
--> **NOTE:** The `enabled` field will need to be explicitly set until the 4.0 provider is released due to the deprecation of the `health_probes_enabled` property in version 3.x of the AzureRM Provider.
-
 * `http_port` - (Optional) The value of the HTTP port. Must be between `1` and `65535`. Defaults to `80`.
 
 * `https_port` - (Optional) The value of the HTTPS port. Must be between `1` and `65535`. Defaults to `443`.
@@ -234,15 +249,17 @@ A `private_link` block supports the following:
 
 !> **IMPORTANT:** To associate a Load Balancer with a Front Door Origin via Private Link you must stand up your own `azurerm_private_link_service` - and ensure that a `depends_on` exists on the `azurerm_cdn_frontdoor_origin` resource to ensure it's destroyed before the `azurerm_private_link_service` resource (e.g. `depends_on = [azurerm_private_link_service.example]`) due to the design of the Front Door Service.
 
-* `request_message` - (Optional) Specifies the request message that will be submitted to the `private_link_target_id` when requesting the private link endpoint connection. Values must be between `1` and `140` characters in length. Defaults to `Access request for Front Door Private Link Origin`.
+* `request_message` - (Optional) Specifies the request message that will be submitted to the `private_link_target_id` when requesting the private link endpoint connection. Values must be between `1` and `140` characters in length. Defaults to `Access request for CDN FrontDoor Private Link Origin`.
 
 * `target_type` - (Optional) Specifies the type of target for this Private Link Endpoint. Possible values are `blob`, `blob_secondary`, `web` and `sites`.
 
 -> **NOTE:** `target_type` cannot be specified when using a Load Balancer as an Origin.
 
-* `location` - (Required) Specifies the location where the Private Link resource should exist.
+* `location` - (Required) Specifies the location where the Private Link resource should exist. Changing this forces a new resource to be created.
 
 * `private_link_target_id` - (Required) The ID of the Azure Resource to connect to via the Private Link.
+
+-> **Note:** the `private_link_target_id` property must specify the Resource ID of the Private Link Service when using Load Balancer as an Origin.
 
 ---
 

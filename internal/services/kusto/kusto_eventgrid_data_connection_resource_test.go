@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package kusto_test
 
 import (
@@ -5,12 +8,11 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/hashicorp/go-azure-sdk/resource-manager/kusto/2023-08-15/dataconnections"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/acceptance"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/acceptance/check"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/clients"
-	"github.com/hashicorp/terraform-provider-azurerm/internal/services/kusto/parse"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/tf/pluginsdk"
-	"github.com/hashicorp/terraform-provider-azurerm/utils"
 )
 
 type KustoEventGridDataConnectionResource struct{}
@@ -106,52 +108,29 @@ func TestAccKustoEventGridDataConnection_systemAssignedIdentity(t *testing.T) {
 	})
 }
 
-func TestAccKustoEventGridDataConnection_update(t *testing.T) {
-	data := acceptance.BuildTestData(t, "azurerm_kusto_eventgrid_data_connection", "test")
-	r := KustoEventGridDataConnectionResource{}
-
-	data.ResourceTest(t, r, []acceptance.TestStep{
-		{
-			Config: r.basic(data),
-			Check: acceptance.ComposeTestCheckFunc(
-				check.That(data.ResourceName).ExistsInAzure(r),
-			),
-		},
-		data.ImportStep(),
-		{
-			Config: r.complete(data),
-			Check: acceptance.ComposeTestCheckFunc(
-				check.That(data.ResourceName).ExistsInAzure(r),
-			),
-		},
-		data.ImportStep(),
-		{
-			Config: r.basic(data),
-			Check: acceptance.ComposeTestCheckFunc(
-				check.That(data.ResourceName).ExistsInAzure(r),
-			),
-		},
-		data.ImportStep(),
-	})
-}
-
 func (KustoEventGridDataConnectionResource) Exists(ctx context.Context, clients *clients.Client, state *pluginsdk.InstanceState) (*bool, error) {
-	id, err := parse.DataConnectionID(state.ID)
+	id, err := dataconnections.ParseDataConnectionID(state.ID)
 	if err != nil {
 		return nil, err
 	}
 
-	resp, err := clients.Kusto.DataConnectionsClient.Get(ctx, id.ResourceGroup, id.ClusterName, id.DatabaseName, id.Name)
+	resp, err := clients.Kusto.DataConnectionsClient.Get(ctx, *id)
 	if err != nil {
 		return nil, fmt.Errorf("retrieving %s: %v", id.String(), err)
 	}
 
-	value, ok := resp.Value.AsEventGridDataConnection()
-	if !ok {
-		return nil, fmt.Errorf("%s is not an Event Grid Data Connection", id.String())
-	}
+	if resp.Model != nil {
+		value, ok := resp.Model.(dataconnections.EventGridDataConnection)
+		if !ok {
+			return nil, fmt.Errorf("%s is not an Event Grid Data Connection", id.String())
+		}
 
-	return utils.Bool(value.EventGridConnectionProperties != nil), nil
+		exists := value.Properties != nil
+
+		return &exists, nil
+	} else {
+		return nil, fmt.Errorf("response model is empty")
+	}
 }
 
 func (r KustoEventGridDataConnectionResource) basic(data acceptance.TestData) string {

@@ -82,9 +82,11 @@ The following arguments are supported:
 
 * `batch_max_wait_time` - (Optional) The maximum wait time per batch in `hh:mm:ss` e.g. `00:02:00` for two minutes.
 
-* `batch_min_rows` - (Optional) The minimum number of rows per batch (must be between `0` and `10000`).
+* `batch_min_rows` - (Optional) The minimum number of rows per batch (must be between `0` and `1000000`).
 
 * `storage_account_key` - (Optional) The Access Key which should be used to connect to this Storage Account.
+
+* `blob_write_mode` - (Optional) Determines whether blob blocks are either committed automatically or appended. Possible values are `Append` and `Once`. Defaults to `Append`.
 
 ---
 
@@ -98,7 +100,7 @@ A `serialization` block supports the following:
 
 -> **NOTE:** This is required when `type` is set to `Csv` or `Json`.
 
-* `field_delimiter` - (Optional) The delimiter that will be used to separate comma-separated value (CSV) records. Possible values are ` ` (space), `,` (comma), `    ` (tab), `|` (pipe) and `;`.
+* `field_delimiter` - (Optional) The delimiter that will be used to separate comma-separated value (CSV) records. Possible values are ` ` (space), `,` (comma), `	` (tab), `|` (pipe) and `;`.
 
 -> **NOTE:** This is required when `type` is set to `Csv`.
 
@@ -108,7 +110,7 @@ A `serialization` block supports the following:
 
 ## Attributes Reference
 
-The following attributes are exported in addition to the arguments listed above:
+In addition to the Arguments listed above - the following Attributes are exported:
 
 * `id` - The ID of the Stream Analytics Output Blob Storage.
 
@@ -126,5 +128,5 @@ The `timeouts` block allows you to specify [timeouts](https://www.terraform.io/l
 Stream Analytics Outputs to Blob Storage can be imported using the `resource id`, e.g.
 
 ```shell
-terraform import azurerm_stream_analytics_output_blob.example /subscriptions/00000000-0000-0000-0000-000000000000/resourcegroups/group1/providers/Microsoft.StreamAnalytics/streamingjobs/job1/outputs/output1
+terraform import azurerm_stream_analytics_output_blob.example /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group1/providers/Microsoft.StreamAnalytics/streamingJobs/job1/outputs/output1
 ```

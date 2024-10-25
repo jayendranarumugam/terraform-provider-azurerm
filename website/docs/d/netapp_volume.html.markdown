@@ -42,6 +42,8 @@ The following arguments are supported:
 The following attributes are exported:
 
 * `location` - The Azure Region where the NetApp Volume exists.
+  
+* `zone` - The Availability Zone in which the Volume is located.
 
 * `mount_ip_addresses` - A list of IPv4 Addresses which should be used to mount the volume.
 
@@ -60,6 +62,10 @@ The following attributes are exported:
 * `data_protection_replication` - Volume data protection block
   
 * `volume_path` - The unique file path of the volume.
+
+* `smb_non_browsable_enabled` - Limits clients from browsing for an SMB share.
+
+* `smb_access_based_enumeration_enabled` - Limits enumeration of files and folders (that is, listing the contents) in SMB only to users with allowed access on the share.
 
 ---
 

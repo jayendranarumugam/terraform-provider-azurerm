@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package domainservices_test
 
 import (
@@ -234,14 +237,14 @@ resource "azurerm_subnet" "aadds" {
   name                 = "acctestSubnet-aadds-%[2]d"
   resource_group_name  = azurerm_resource_group.test.name
   virtual_network_name = azurerm_virtual_network.test.name
-  address_prefixes     = [cidrsubnet(azurerm_virtual_network.test.address_space.0, 8, 0)]
+  address_prefixes     = [cidrsubnet(tolist(azurerm_virtual_network.test.address_space)[0], 8, 0)]
 }
 
 resource "azurerm_subnet" "workload" {
   name                 = "acctestSubnet-workload-%[2]d"
   resource_group_name  = azurerm_resource_group.test.name
   virtual_network_name = azurerm_virtual_network.test.name
-  address_prefixes     = [cidrsubnet(azurerm_virtual_network.test.address_space.0, 8, 1)]
+  address_prefixes     = [cidrsubnet(tolist(azurerm_virtual_network.test.address_space)[0], 8, 1)]
 }
 
 resource "azurerm_network_security_group" "aadds" {
@@ -406,14 +409,14 @@ resource "azurerm_subnet" "aadds_secondary" {
   name                 = "acctestSubnet-aadds-secondary-%[4]d"
   resource_group_name  = azurerm_resource_group.test_secondary.name
   virtual_network_name = azurerm_virtual_network.test_secondary.name
-  address_prefixes     = [cidrsubnet(azurerm_virtual_network.test_secondary.address_space.0, 8, 0)]
+  address_prefixes     = [cidrsubnet(tolist(azurerm_virtual_network.test_secondary.address_space)[0], 8, 0)]
 }
 
 resource "azurerm_subnet" "workload_secondary" {
   name                 = "acctestSubnet-workload-secondary-%[4]d"
   resource_group_name  = azurerm_resource_group.test_secondary.name
   virtual_network_name = azurerm_virtual_network.test_secondary.name
-  address_prefixes     = [cidrsubnet(azurerm_virtual_network.test_secondary.address_space.0, 8, 1)]
+  address_prefixes     = [cidrsubnet(tolist(azurerm_virtual_network.test_secondary.address_space)[0], 8, 1)]
 }
 
 resource "azurerm_network_security_group" "aadds_secondary" {
@@ -485,6 +488,11 @@ resource "azurerm_virtual_network_peering" "test_primary_secondary" {
   allow_gateway_transit        = false
   allow_virtual_network_access = true
   use_remote_gateways          = false
+
+  depends_on = [
+    azurerm_subent.aadds_secondary,
+    azurerm_subent.workload_secondary,
+  ]
 }
 
 resource "azurerm_virtual_network_peering" "test_secondary_primary" {
@@ -497,6 +505,11 @@ resource "azurerm_virtual_network_peering" "test_secondary_primary" {
   allow_gateway_transit        = false
   allow_virtual_network_access = true
   use_remote_gateways          = false
+
+  depends_on = [
+    azurerm_subent.aadds_secondary,
+    azurerm_subent.workload_secondary,
+  ]
 }
 
 resource "azurerm_active_directory_domain_service_replica_set" "test_secondary" {

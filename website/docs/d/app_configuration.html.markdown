@@ -39,7 +39,7 @@ In addition to the Arguments listed above - the following Attributes are exporte
 
 * `endpoint` - The Endpoint used to access this App Configuration.
 
-* `encrption` - An `encryption` block as defined below.
+* `encryption` - An `encryption` block as defined below.
 
 * `local_auth_enabled` - Whether local authentication methods is enabled.
 
@@ -52,6 +52,8 @@ In addition to the Arguments listed above - the following Attributes are exporte
 * `public_network_access` - The Public Network Access setting of this App Configuration.
 
 * `purge_protection_enabled` - Whether Purge Protection is enabled.
+
+* `replica` - One or more `replica` blocks as defined below.
 
 * `secondary_read_key` - A `secondary_read_key` block as defined below containing the secondary read access key.
 
@@ -82,6 +84,19 @@ A `primary_write_key` block exports the following:
 * `id` - The ID of the Access Key.
 
 * `secret` - The Secret of the Access Key.
+
+---
+
+A `replica` block exports the following:
+
+* `id` - The ID of the App Configuration Replica.
+
+* `endpoint` - The URL of the App Configuration Replica.
+
+* `location` - The supported Azure location where the App Configuration Replica exists.
+
+* `name` - The name of the App Configuration Replica.
+
 
 ---
 

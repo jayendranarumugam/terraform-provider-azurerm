@@ -51,11 +51,15 @@ resource "azurerm_spring_cloud_configuration_service" "example" {
 
 The following arguments are supported:
 
-* `name` - (Required) The name which should be used for this Spring Cloud Configuration Service. Changing this forces a new Spring Cloud Configuration Service to be created.
+* `name` - (Required) The name which should be used for this Spring Cloud Configuration Service. The only possible value is `default`. Changing this forces a new Spring Cloud Configuration Service to be created.
 
 * `spring_cloud_service_id` - (Required) The ID of the Spring Cloud Service. Changing this forces a new Spring Cloud Configuration Service to be created.
 
 ---
+
+* `generation` - (Optional) The generation of the Spring Cloud Configuration Service. Possible values are `Gen1` and `Gen2`.
+
+* `refresh_interval_in_seconds` - (Optional) Specifies how often to check repository updates. Minimum value is 0.
 
 * `repository` - (Optional) One or more `repository` blocks as defined below.
 
@@ -70,6 +74,8 @@ A `repository` block supports the following:
 * `patterns` - (Required) Specifies the collection of patterns of the repository.
 
 * `uri` - (Required) Specifies the URI of the repository.
+
+* `ca_certificate_id` - (Optional) Specifies the ID of the Certificate Authority used when retrieving the Git Repository via HTTPS.
 
 * `host_key` - (Optional) Specifies the SSH public key of git repository.
 
@@ -105,5 +111,5 @@ The `timeouts` block allows you to specify [timeouts](https://www.terraform.io/l
 Spring Cloud Configuration Services can be imported using the `resource id`, e.g.
 
 ```shell
-terraform import azurerm_spring_cloud_configuration_service.example /subscriptions/12345678-1234-9876-4563-123456789012/resourceGroups/resourceGroup1/providers/Microsoft.AppPlatform/Spring/service1/configurationServices/configurationService1
+terraform import azurerm_spring_cloud_configuration_service.example /subscriptions/12345678-1234-9876-4563-123456789012/resourceGroups/resourceGroup1/providers/Microsoft.AppPlatform/spring/service1/configurationServices/configurationService1
 ```

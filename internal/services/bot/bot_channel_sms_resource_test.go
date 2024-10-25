@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package bot_test
 
 import (
@@ -6,24 +9,24 @@ import (
 	"os"
 	"testing"
 
-	"github.com/Azure/azure-sdk-for-go/services/preview/botservice/mgmt/2021-05-01-preview/botservice"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/acceptance"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/acceptance/check"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/clients"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/services/bot/parse"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/tf/pluginsdk"
 	"github.com/hashicorp/terraform-provider-azurerm/utils"
+	"github.com/tombuildsstuff/kermit/sdk/botservice/2021-05-01-preview/botservice"
 )
 
 type BotChannelSMSResource struct{}
 
-func testAccBotChannelSMS_basic(t *testing.T) {
+func TestAccBotChannelSMS_basic(t *testing.T) {
 	skipSMSChannel(t)
 
 	data := acceptance.BuildTestData(t, "azurerm_bot_channel_sms", "test")
 	r := BotChannelSMSResource{}
 
-	data.ResourceSequentialTest(t, r, []acceptance.TestStep{
+	data.ResourceTest(t, r, []acceptance.TestStep{
 		{
 			Config: r.basic(data),
 			Check: acceptance.ComposeTestCheckFunc(
@@ -34,13 +37,13 @@ func testAccBotChannelSMS_basic(t *testing.T) {
 	})
 }
 
-func testAccBotChannelSMS_requiresImport(t *testing.T) {
+func TestAccBotChannelSMS_requiresImport(t *testing.T) {
 	skipSMSChannel(t)
 
 	data := acceptance.BuildTestData(t, "azurerm_bot_channel_sms", "test")
 	r := BotChannelSMSResource{}
 
-	data.ResourceSequentialTest(t, r, []acceptance.TestStep{
+	data.ResourceTest(t, r, []acceptance.TestStep{
 		{
 			Config: r.basic(data),
 			Check: acceptance.ComposeTestCheckFunc(

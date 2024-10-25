@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package portal_test
 
 import (
@@ -9,6 +12,7 @@ import (
 	"github.com/hashicorp/terraform-provider-azurerm/internal/acceptance"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/acceptance/check"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/clients"
+	"github.com/hashicorp/terraform-provider-azurerm/internal/features"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/tf/pluginsdk"
 	"github.com/hashicorp/terraform-provider-azurerm/utils"
 )
@@ -16,6 +20,10 @@ import (
 type LegacyDashboardResource struct{}
 
 func TestAccLegacyDashboard_basic(t *testing.T) {
+	if features.FourPointOhBeta() {
+		t.Skip("Test no longer valid due to deprecation of the 'azurerm_dashboard' resource in the 4.x version of the provider")
+	}
+
 	data := acceptance.BuildTestData(t, "azurerm_dashboard", "test")
 	r := LegacyDashboardResource{}
 	data.ResourceTest(t, r, []acceptance.TestStep{
@@ -30,6 +38,10 @@ func TestAccLegacyDashboard_basic(t *testing.T) {
 }
 
 func TestAccLegacyDashboard_complete(t *testing.T) {
+	if features.FourPointOhBeta() {
+		t.Skip("Test no longer valid due to deprecation of the 'azurerm_dashboard' resource in the 4.x version of the provider")
+	}
+
 	data := acceptance.BuildTestData(t, "azurerm_dashboard", "test")
 	r := LegacyDashboardResource{}
 	data.ResourceTest(t, r, []acceptance.TestStep{

@@ -67,6 +67,8 @@ The following arguments are supported:
 
 * `addon_json` - (Optional) A JSON object that contains the addon configurations of the Spring Cloud Container Deployment.
 
+* `application_performance_monitoring_ids` - (Optional) Specifies a list of Spring Cloud Application Performance Monitoring IDs.
+
 * `arguments` - (Optional) Specifies the arguments to the entrypoint. The docker image's `CMD` is used if not specified.
 
 * `commands` - (Optional) Specifies the entrypoint array. It will not be executed within a shell. The docker image's `ENTRYPOINT` is used if not specified.
@@ -111,5 +113,5 @@ The `timeouts` block allows you to specify [timeouts](https://www.terraform.io/l
 Spring Cloud Container Deployments can be imported using the `resource id`, e.g.
 
 ```shell
-terraform import azurerm_spring_cloud_container_deployment.example /subscriptions/12345678-1234-9876-4563-123456789012/resourceGroups/resGroup1/providers/Microsoft.AppPlatform/Spring/spring1/apps/app1/deployments/deploy1
+terraform import azurerm_spring_cloud_container_deployment.example /subscriptions/12345678-1234-9876-4563-123456789012/resourceGroups/resGroup1/providers/Microsoft.AppPlatform/spring/spring1/apps/app1/deployments/deploy1
 ```

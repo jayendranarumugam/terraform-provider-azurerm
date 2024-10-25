@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package cosmos_test
 
 import (
@@ -60,6 +63,7 @@ func (r CosmosDbNotebookWorkspaceResource) Exists(ctx context.Context, client *c
 	return utils.Bool(true), nil
 }
 
+//nolint:unused
 func (r CosmosDbNotebookWorkspaceResource) template(data acceptance.TestData) string {
 	return fmt.Sprintf(`
 provider "azurerm" {
@@ -90,6 +94,7 @@ resource "azurerm_cosmosdb_account" "test" {
 `, data.RandomInteger, data.Locations.Primary, data.RandomInteger)
 }
 
+//nolint:unused
 func (r CosmosDbNotebookWorkspaceResource) basic(data acceptance.TestData) string {
 	template := r.template(data)
 	return fmt.Sprintf(`
@@ -103,6 +108,7 @@ resource "azurerm_cosmosdb_notebook_workspace" "test" {
 `, template)
 }
 
+//nolint:unused
 func (r CosmosDbNotebookWorkspaceResource) requiresImport(data acceptance.TestData) string {
 	config := r.basic(data)
 	return fmt.Sprintf(`

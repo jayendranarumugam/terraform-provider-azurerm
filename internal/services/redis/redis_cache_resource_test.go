@@ -1,15 +1,17 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package redis_test
 
 import (
 	"context"
 	"fmt"
-	"strings"
 	"testing"
 
+	"github.com/hashicorp/go-azure-sdk/resource-manager/redis/2024-03-01/redis"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/acceptance"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/acceptance/check"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/clients"
-	"github.com/hashicorp/terraform-provider-azurerm/internal/services/redis/parse"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/tf/pluginsdk"
 	"github.com/hashicorp/terraform-provider-azurerm/utils"
 )
@@ -28,8 +30,25 @@ func TestAccRedisCache_basic(t *testing.T) {
 				check.That(data.ResourceName).Key("minimum_tls_version").Exists(),
 				check.That(data.ResourceName).Key("primary_connection_string").Exists(),
 				check.That(data.ResourceName).Key("secondary_connection_string").Exists(),
-				testCheckSSLInConnectionString(data.ResourceName, "primary_connection_string", true),
-				testCheckSSLInConnectionString(data.ResourceName, "secondary_connection_string", true),
+			),
+		},
+		data.ImportStep(),
+	})
+}
+
+func TestAccRedisCache_managedIdentityAuth(t *testing.T) {
+	data := acceptance.BuildTestData(t, "azurerm_redis_cache", "test")
+	r := RedisCacheResource{}
+
+	data.ResourceTest(t, r, []acceptance.TestStep{
+		{
+			Config: r.managedIdentityAuth(data, true),
+			Check: acceptance.ComposeTestCheckFunc(
+				check.That(data.ResourceName).ExistsInAzure(r),
+				check.That(data.ResourceName).Key("minimum_tls_version").Exists(),
+				check.That(data.ResourceName).Key("primary_connection_string").Exists(),
+				check.That(data.ResourceName).Key("secondary_connection_string").Exists(),
+				check.That(data.ResourceName).Key("redis_configuration.0.data_persistence_authentication_method").HasValue("ManagedIdentity"),
 			),
 		},
 		data.ImportStep(),
@@ -45,8 +64,6 @@ func TestAccRedisCache_withoutSSL(t *testing.T) {
 			Config: r.basic(data, false),
 			Check: acceptance.ComposeTestCheckFunc(
 				check.That(data.ResourceName).ExistsInAzure(r),
-				testCheckSSLInConnectionString(data.ResourceName, "primary_connection_string", false),
-				testCheckSSLInConnectionString(data.ResourceName, "secondary_connection_string", false),
 			),
 		},
 		data.ImportStep(),
@@ -133,6 +150,21 @@ func TestAccRedisCache_premiumShardedScaling(t *testing.T) {
 	})
 }
 
+func TestAccRedisCache_AadEnabled(t *testing.T) {
+	data := acceptance.BuildTestData(t, "azurerm_redis_cache", "test")
+	r := RedisCacheResource{}
+
+	data.ResourceTest(t, r, []acceptance.TestStep{
+		{
+			Config: r.aadEnabled(data),
+			Check: acceptance.ComposeTestCheckFunc(
+				check.That(data.ResourceName).ExistsInAzure(r),
+			),
+		},
+		data.ImportStep("redis_configuration.0.rdb_storage_connection_string"),
+	})
+}
+
 func TestAccRedisCache_BackupDisabled(t *testing.T) {
 	data := acceptance.BuildTestData(t, "azurerm_redis_cache", "test")
 	r := RedisCacheResource{}
@@ -143,6 +175,11 @@ func TestAccRedisCache_BackupDisabled(t *testing.T) {
 			Check: acceptance.ComposeTestCheckFunc(
 				check.That(data.ResourceName).ExistsInAzure(r),
 			),
+			// `redis_configuration.0.aof_storage_connection_string_0` and `redis_configuration.0.aof_storage_connection_string_1` are returned as:
+			// "...;AccountKey=[key hidden]" rather than "...;AccountKey=fsjfvjnfnf"
+			// TODO: remove this once the Bug's been fixed:
+			// https://github.com/Azure/azure-rest-api-specs/issues/3037
+			ExpectNonEmptyPlan: true,
 		},
 	})
 }
@@ -178,7 +215,7 @@ func TestAccRedisCache_BackupEnabledDisabled(t *testing.T) {
 				check.That(data.ResourceName).ExistsInAzure(r),
 			),
 			// `redis_configuration.0.rdb_storage_connection_string` is returned as:
-			// "...;AccountKey=[key hidden]" rather than "...;AccountKey=fsjfvjnfnf"
+			// "...;AccountKey=[key hidden]" rather than "...;AccountKey=fsjfvjnfnf..."
 			// TODO: remove this once the Bug's been fixed:
 			// https://github.com/Azure/azure-rest-api-specs/issues/3037
 			ExpectNonEmptyPlan: true,
@@ -188,8 +225,8 @@ func TestAccRedisCache_BackupEnabledDisabled(t *testing.T) {
 			Check: acceptance.ComposeTestCheckFunc(
 				check.That(data.ResourceName).ExistsInAzure(r),
 			),
-			// `redis_configuration.0.rdb_storage_connection_string` is returned as:
-			// "...;AccountKey=[key hidden]" rather than "...;AccountKey=fsjfvjnfnf"
+			// `redis_configuration.0.aof_storage_connection_string_0` and `redis_configuration.0.aof_storage_connection_string_1` are returned as:
+			// "...;AccountKey=[key hidden]" rather than "...;AccountKey=fsjfvjnfnf..."
 			// TODO: remove this once the Bug's been fixed:
 			// https://github.com/Azure/azure-rest-api-specs/issues/3037
 			ExpectNonEmptyPlan: true,
@@ -224,6 +261,9 @@ func TestAccRedisCache_AOFBackupEnabledDisabled(t *testing.T) {
 			Check: acceptance.ComposeTestCheckFunc(
 				check.That(data.ResourceName).ExistsInAzure(r),
 			),
+			// `redis_configuration.0.aof_storage_connection_string_0` and `aof_storage_connection_string_1` are returned as:
+			// "...;AccountKey=[key hidden]" rather than "...;AccountKey=fsjfvjnfnf..."
+			// TODO: remove this once the Bug's been fixed:
 			ExpectNonEmptyPlan: true,
 		},
 		{
@@ -231,7 +271,31 @@ func TestAccRedisCache_AOFBackupEnabledDisabled(t *testing.T) {
 			Check: acceptance.ComposeTestCheckFunc(
 				check.That(data.ResourceName).ExistsInAzure(r),
 			),
+			// `redis_configuration.0.rdb_storage_connection_string` is returned as:
+			// "...;AccountKey=[key hidden]" rather than "...;AccountKey=fsjfvjnfnf..."
+			// TODO: remove this once the Bug's been fixed:
 			ExpectNonEmptyPlan: true,
+		},
+	})
+}
+
+// ignore `aof_backup_enabled` if SKU is not `Premium`
+func TestAccRedisCache_IgnoreAOFBackupWhenSKUNotPremium(t *testing.T) {
+	data := acceptance.BuildTestData(t, "azurerm_redis_cache", "test")
+	r := RedisCacheResource{}
+
+	data.ResourceTest(t, r, []acceptance.TestStep{
+		{
+			Config: r.ignoreAOFBackupEnableWhenSKUNotPremium(data, "volatile-lru"),
+			Check: acceptance.ComposeTestCheckFunc(
+				check.That(data.ResourceName).ExistsInAzure(r),
+			),
+		},
+		{
+			Config: r.ignoreAOFBackupEnableWhenSKUNotPremium(data, "allkeys-lru"),
+			Check: acceptance.ComposeTestCheckFunc(
+				check.That(data.ResourceName).ExistsInAzure(r),
+			),
 		},
 	})
 }
@@ -370,7 +434,7 @@ func TestAccRedisCache_WithoutAuth(t *testing.T) {
 			Config: r.withoutAuth(data),
 			Check: acceptance.ComposeTestCheckFunc(
 				check.That(data.ResourceName).ExistsInAzure(r),
-				check.That(data.ResourceName).Key("redis_configuration.0.enable_authentication").HasValue("false"),
+				check.That(data.ResourceName).Key("redis_configuration.0.authentication_enabled").HasValue("false"),
 			),
 		},
 	})
@@ -411,26 +475,6 @@ func TestAccRedisCache_RedisVersion(t *testing.T) {
 	data.ResourceTest(t, r, []acceptance.TestStep{
 		{
 			Config: r.redisVersion(data),
-			Check: acceptance.ComposeTestCheckFunc(
-				check.That(data.ResourceName).ExistsInAzure(r),
-			),
-		},
-	})
-}
-
-func TestAccRedisCache_RedisVersionUpgrade(t *testing.T) {
-	data := acceptance.BuildTestData(t, "azurerm_redis_cache", "test")
-	r := RedisCacheResource{}
-
-	data.ResourceTest(t, r, []acceptance.TestStep{
-		{
-			Config: r.redisVersion(data),
-			Check: acceptance.ComposeTestCheckFunc(
-				check.That(data.ResourceName).ExistsInAzure(r),
-			),
-		},
-		{
-			Config: r.redisVersion6(data),
 			Check: acceptance.ComposeTestCheckFunc(
 				check.That(data.ResourceName).ExistsInAzure(r),
 			),
@@ -517,21 +561,51 @@ func TestAccRedisCache_SkuDowngrade(t *testing.T) {
 	})
 }
 
+func TestAccRedisCache_AccessKeysAuthenticationEnabledDisabled(t *testing.T) {
+	data := acceptance.BuildTestData(t, "azurerm_redis_cache", "test")
+	r := RedisCacheResource{}
+
+	data.ResourceTest(t, r, []acceptance.TestStep{
+		{
+			Config: r.accessKeysAuthentication(data, true, false),
+			Check: acceptance.ComposeTestCheckFunc(
+				check.That(data.ResourceName).ExistsInAzure(r),
+			),
+		},
+		data.ImportStep(),
+		{
+			Config: r.accessKeysAuthentication(data, false, true),
+			Check: acceptance.ComposeTestCheckFunc(
+				check.That(data.ResourceName).ExistsInAzure(r),
+			),
+		},
+		data.ImportStep(),
+		{
+			Config: r.accessKeysAuthentication(data, true, false),
+			Check: acceptance.ComposeTestCheckFunc(
+				check.That(data.ResourceName).ExistsInAzure(r),
+			),
+		},
+		data.ImportStep(),
+	})
+}
+
 func (t RedisCacheResource) Exists(ctx context.Context, clients *clients.Client, state *pluginsdk.InstanceState) (*bool, error) {
-	id, err := parse.CacheID(state.ID)
+	id, err := redis.ParseRediID(state.ID)
 	if err != nil {
 		return nil, err
 	}
 
-	resp, err := clients.Redis.Client.Get(ctx, id.ResourceGroup, id.RediName)
+	resp, err := clients.Redis.Redis.Get(ctx, *id)
 	if err != nil {
-		return nil, fmt.Errorf("reading Redis Cache (%s): %+v", id.String(), err)
+		return nil, fmt.Errorf("reading %s: %+v", *id, err)
 	}
 
-	return utils.Bool(resp.Properties != nil), nil
+	return utils.Bool(resp.Model != nil), nil
 }
 
 func (RedisCacheResource) basic(data acceptance.TestData, requireSSL bool) string {
+
 	return fmt.Sprintf(`
 provider "azurerm" {
   features {}
@@ -543,16 +617,44 @@ resource "azurerm_resource_group" "test" {
 }
 
 resource "azurerm_redis_cache" "test" {
-  name                = "acctestRedis-%d"
-  location            = azurerm_resource_group.test.location
-  resource_group_name = azurerm_resource_group.test.name
-  capacity            = 1
-  family              = "C"
-  sku_name            = "Basic"
-  enable_non_ssl_port = %t
-  minimum_tls_version = "1.2"
+  name                 = "acctestRedis-%d"
+  location             = azurerm_resource_group.test.location
+  resource_group_name  = azurerm_resource_group.test.name
+  capacity             = 1
+  family               = "C"
+  sku_name             = "Basic"
+  non_ssl_port_enabled = %t
+  minimum_tls_version  = "1.2"
 
   redis_configuration {
+  }
+}
+`, data.RandomInteger, data.Locations.Primary, data.RandomInteger, !requireSSL)
+}
+
+func (RedisCacheResource) managedIdentityAuth(data acceptance.TestData, requireSSL bool) string {
+	return fmt.Sprintf(`
+provider "azurerm" {
+  features {}
+}
+
+resource "azurerm_resource_group" "test" {
+  name     = "acctestRG-%d"
+  location = "%s"
+}
+
+resource "azurerm_redis_cache" "test" {
+  name                 = "acctestRedis-%d"
+  location             = azurerm_resource_group.test.location
+  resource_group_name  = azurerm_resource_group.test.name
+  capacity             = 1
+  family               = "C"
+  sku_name             = "Basic"
+  non_ssl_port_enabled = %t
+  minimum_tls_version  = "1.2"
+
+  redis_configuration {
+    data_persistence_authentication_method = "ManagedIdentity"
   }
 }
 `, data.RandomInteger, data.Locations.Primary, data.RandomInteger, !requireSSL)
@@ -564,13 +666,13 @@ func (RedisCacheResource) requiresImport(data acceptance.TestData) string {
 %s
 
 resource "azurerm_redis_cache" "import" {
-  name                = azurerm_redis_cache.test.name
-  location            = azurerm_redis_cache.test.location
-  resource_group_name = azurerm_redis_cache.test.resource_group_name
-  capacity            = azurerm_redis_cache.test.capacity
-  family              = azurerm_redis_cache.test.family
-  sku_name            = azurerm_redis_cache.test.sku_name
-  enable_non_ssl_port = azurerm_redis_cache.test.enable_non_ssl_port
+  name                 = azurerm_redis_cache.test.name
+  location             = azurerm_redis_cache.test.location
+  resource_group_name  = azurerm_redis_cache.test.resource_group_name
+  capacity             = azurerm_redis_cache.test.capacity
+  family               = azurerm_redis_cache.test.family
+  sku_name             = azurerm_redis_cache.test.sku_name
+  non_ssl_port_enabled = azurerm_redis_cache.test.non_ssl_port_enabled
 
   redis_configuration {
   }
@@ -590,13 +692,13 @@ resource "azurerm_resource_group" "test" {
 }
 
 resource "azurerm_redis_cache" "test" {
-  name                = "acctestRedis-%d"
-  location            = azurerm_resource_group.test.location
-  resource_group_name = azurerm_resource_group.test.name
-  capacity            = 1
-  family              = "C"
-  sku_name            = "Standard"
-  enable_non_ssl_port = false
+  name                 = "acctestRedis-%d"
+  location             = azurerm_resource_group.test.location
+  resource_group_name  = azurerm_resource_group.test.name
+  capacity             = 1
+  family               = "C"
+  sku_name             = "Standard"
+  non_ssl_port_enabled = false
   redis_configuration {
   }
 
@@ -619,13 +721,13 @@ resource "azurerm_resource_group" "test" {
 }
 
 resource "azurerm_redis_cache" "test" {
-  name                = "acctestRedis-%d"
-  location            = azurerm_resource_group.test.location
-  resource_group_name = azurerm_resource_group.test.name
-  capacity            = 1
-  family              = "P"
-  sku_name            = "Premium"
-  enable_non_ssl_port = false
+  name                 = "acctestRedis-%d"
+  location             = azurerm_resource_group.test.location
+  resource_group_name  = azurerm_resource_group.test.name
+  capacity             = 1
+  family               = "P"
+  sku_name             = "Premium"
+  non_ssl_port_enabled = false
 
   redis_configuration {
     maxmemory_reserved              = 642
@@ -649,14 +751,14 @@ resource "azurerm_resource_group" "test" {
 }
 
 resource "azurerm_redis_cache" "test" {
-  name                = "acctestRedis-%d"
-  location            = azurerm_resource_group.test.location
-  resource_group_name = azurerm_resource_group.test.name
-  capacity            = 1
-  family              = "P"
-  sku_name            = "Premium"
-  enable_non_ssl_port = true
-  shard_count         = 3
+  name                 = "acctestRedis-%d"
+  location             = azurerm_resource_group.test.location
+  resource_group_name  = azurerm_resource_group.test.name
+  capacity             = 1
+  family               = "P"
+  sku_name             = "Premium"
+  non_ssl_port_enabled = true
+  shard_count          = 3
 
   redis_configuration {
     maxmemory_reserved              = 642
@@ -680,20 +782,48 @@ resource "azurerm_resource_group" "test" {
 }
 
 resource "azurerm_redis_cache" "test" {
-  name                = "acctestRedis-%d"
-  location            = azurerm_resource_group.test.location
-  resource_group_name = azurerm_resource_group.test.name
-  capacity            = 2
-  family              = "P"
-  sku_name            = "Premium"
-  enable_non_ssl_port = true
-  shard_count         = 3
+  name                 = "acctestRedis-%d"
+  location             = azurerm_resource_group.test.location
+  resource_group_name  = azurerm_resource_group.test.name
+  capacity             = 2
+  family               = "P"
+  sku_name             = "Premium"
+  non_ssl_port_enabled = true
+  shard_count          = 3
 
   redis_configuration {
     maxmemory_reserved              = 1328
     maxfragmentationmemory_reserved = 1328
     maxmemory_delta                 = 1328
     maxmemory_policy                = "allkeys-lru"
+  }
+}
+`, data.RandomInteger, data.Locations.Primary, data.RandomInteger)
+}
+
+func (RedisCacheResource) aadEnabled(data acceptance.TestData) string {
+	return fmt.Sprintf(`
+provider "azurerm" {
+  features {}
+}
+
+resource "azurerm_resource_group" "test" {
+  name     = "acctestRG-%d"
+  location = "%s"
+}
+
+resource "azurerm_redis_cache" "test" {
+  name                          = "acctestRedis-%d"
+  location                      = azurerm_resource_group.test.location
+  resource_group_name           = azurerm_resource_group.test.name
+  capacity                      = 3
+  family                        = "P"
+  sku_name                      = "Premium"
+  non_ssl_port_enabled          = false
+  public_network_access_enabled = false
+
+  redis_configuration {
+    active_directory_authentication_enabled = true
   }
 }
 `, data.RandomInteger, data.Locations.Primary, data.RandomInteger)
@@ -710,20 +840,59 @@ resource "azurerm_resource_group" "test" {
   location = "%s"
 }
 
-resource "azurerm_redis_cache" "test" {
-  name                = "acctestRedis-%d"
-  location            = azurerm_resource_group.test.location
-  resource_group_name = azurerm_resource_group.test.name
-  capacity            = 3
-  family              = "P"
-  sku_name            = "Premium"
-  enable_non_ssl_port = false
+resource "azurerm_storage_account" "test" {
+  name                     = "acctestsa%s"
+  resource_group_name      = azurerm_resource_group.test.name
+  location                 = azurerm_resource_group.test.location
+  account_tier             = "Standard"
+  account_replication_type = "GRS"
 
-  redis_configuration {
-    rdb_backup_enabled = false
+  tags = {
+    environment = "staging"
   }
 }
-`, data.RandomInteger, data.Locations.Primary, data.RandomInteger)
+
+resource "azurerm_storage_account" "test2" {
+  name                     = "acctestsa2%s"
+  resource_group_name      = azurerm_resource_group.test.name
+  location                 = azurerm_resource_group.test.location
+  account_tier             = "Standard"
+  account_replication_type = "GRS"
+
+  tags = {
+    environment = "staging"
+  }
+}
+
+resource "azurerm_storage_account" "test3" {
+  name                     = "acctestsa3%s"
+  resource_group_name      = azurerm_resource_group.test.name
+  location                 = azurerm_resource_group.test.location
+  account_tier             = "Standard"
+  account_replication_type = "GRS"
+
+  tags = {
+    environment = "staging"
+  }
+}
+
+resource "azurerm_redis_cache" "test" {
+  name                 = "acctestRedis-%d"
+  location             = azurerm_resource_group.test.location
+  resource_group_name  = azurerm_resource_group.test.name
+  capacity             = 3
+  family               = "P"
+  sku_name             = "Premium"
+  non_ssl_port_enabled = false
+
+  redis_configuration {
+    rdb_backup_enabled              = false
+    aof_backup_enabled              = true
+    aof_storage_connection_string_0 = azurerm_storage_account.test2.primary_connection_string
+    aof_storage_connection_string_1 = azurerm_storage_account.test3.primary_connection_string
+  }
+}
+`, data.RandomInteger, data.Locations.Primary, data.RandomString, data.RandomString, data.RandomString, data.RandomInteger)
 }
 
 func (RedisCacheResource) backupEnabled(data acceptance.TestData) string {
@@ -750,22 +919,23 @@ resource "azurerm_storage_account" "test" {
 }
 
 resource "azurerm_redis_cache" "test" {
-  name                = "acctestRedis-%d"
-  location            = azurerm_resource_group.test.location
-  resource_group_name = azurerm_resource_group.test.name
-  capacity            = 3
-  family              = "P"
-  sku_name            = "Premium"
-  enable_non_ssl_port = false
+  name                 = "acctestRedis-%d"
+  location             = azurerm_resource_group.test.location
+  resource_group_name  = azurerm_resource_group.test.name
+  capacity             = 3
+  family               = "P"
+  sku_name             = "Premium"
+  non_ssl_port_enabled = false
 
   redis_configuration {
-    rdb_backup_enabled            = true
-    rdb_backup_frequency          = 60
-    rdb_backup_max_snapshot_count = 1
-    rdb_storage_connection_string = "DefaultEndpointsProtocol=https;BlobEndpoint=${azurerm_storage_account.test.primary_blob_endpoint};AccountName=${azurerm_storage_account.test.name};AccountKey=${azurerm_storage_account.test.primary_access_key}"
+    rdb_backup_enabled              = true
+    rdb_backup_frequency            = 60
+    rdb_backup_max_snapshot_count   = 1
+    rdb_storage_connection_string   = azurerm_storage_account.test.primary_connection_string
+    storage_account_subscription_id = "%s"
   }
 }
-`, data.RandomInteger, data.Locations.Primary, data.RandomString, data.RandomInteger)
+`, data.RandomInteger, data.Locations.Primary, data.RandomString, data.RandomInteger, data.Client().SubscriptionID)
 }
 
 func (RedisCacheResource) aofBackupDisabled(data acceptance.TestData) string {
@@ -779,20 +949,60 @@ resource "azurerm_resource_group" "test" {
   location = "%s"
 }
 
-resource "azurerm_redis_cache" "test" {
-  name                = "acctestRedis-%d"
-  location            = azurerm_resource_group.test.location
-  resource_group_name = azurerm_resource_group.test.name
-  capacity            = 3
-  family              = "P"
-  sku_name            = "Premium"
-  enable_non_ssl_port = false
+resource "azurerm_storage_account" "test" {
+  name                     = "acctestsa%s"
+  resource_group_name      = azurerm_resource_group.test.name
+  location                 = azurerm_resource_group.test.location
+  account_tier             = "Standard"
+  account_replication_type = "GRS"
 
-  redis_configuration {
-    aof_backup_enabled = false
+  tags = {
+    environment = "staging"
   }
 }
-`, data.RandomInteger, data.Locations.Primary, data.RandomInteger)
+
+resource "azurerm_storage_account" "test2" {
+  name                     = "acctestsa2%s"
+  resource_group_name      = azurerm_resource_group.test.name
+  location                 = azurerm_resource_group.test.location
+  account_tier             = "Standard"
+  account_replication_type = "GRS"
+
+  tags = {
+    environment = "staging"
+  }
+}
+
+resource "azurerm_storage_account" "test3" {
+  name                     = "acctestsa3%s"
+  resource_group_name      = azurerm_resource_group.test.name
+  location                 = azurerm_resource_group.test.location
+  account_tier             = "Standard"
+  account_replication_type = "GRS"
+
+  tags = {
+    environment = "staging"
+  }
+}
+
+resource "azurerm_redis_cache" "test" {
+  name                 = "acctestRedis-%d"
+  location             = azurerm_resource_group.test.location
+  resource_group_name  = azurerm_resource_group.test.name
+  capacity             = 3
+  family               = "P"
+  sku_name             = "Premium"
+  non_ssl_port_enabled = false
+
+  redis_configuration {
+    aof_backup_enabled            = false
+    rdb_backup_enabled            = true
+    rdb_backup_frequency          = 60
+    rdb_backup_max_snapshot_count = 1
+    rdb_storage_connection_string = azurerm_storage_account.test3.primary_connection_string
+  }
+}
+`, data.RandomInteger, data.Locations.Primary, data.RandomString, data.RandomString, data.RandomString, data.RandomInteger)
 }
 
 func (RedisCacheResource) aofBackupEnabled(data acceptance.TestData) string {
@@ -807,7 +1017,19 @@ resource "azurerm_resource_group" "test" {
 }
 
 resource "azurerm_storage_account" "test" {
-  name                     = "unlikely23exst2acct%s"
+  name                     = "acctestsa%s"
+  resource_group_name      = azurerm_resource_group.test.name
+  location                 = azurerm_resource_group.test.location
+  account_tier             = "Standard"
+  account_replication_type = "GRS"
+
+  tags = {
+    environment = "staging"
+  }
+}
+
+resource "azurerm_storage_account" "test2" {
+  name                     = "acctestsa2%s"
   resource_group_name      = azurerm_resource_group.test.name
   location                 = azurerm_resource_group.test.location
   account_tier             = "Standard"
@@ -819,21 +1041,75 @@ resource "azurerm_storage_account" "test" {
 }
 
 resource "azurerm_redis_cache" "test" {
-  name                = "acctestRedis-%d"
-  location            = azurerm_resource_group.test.location
-  resource_group_name = azurerm_resource_group.test.name
-  capacity            = 1
-  family              = "P"
-  sku_name            = "Premium"
-  enable_non_ssl_port = false
+  name                 = "acctestRedis-%d"
+  location             = azurerm_resource_group.test.location
+  resource_group_name  = azurerm_resource_group.test.name
+  capacity             = 3
+  family               = "P"
+  sku_name             = "Premium"
+  non_ssl_port_enabled = false
 
   redis_configuration {
     aof_backup_enabled              = true
-    aof_storage_connection_string_0 = "DefaultEndpointsProtocol=https;BlobEndpoint=${azurerm_storage_account.test.primary_blob_endpoint};AccountName=${azurerm_storage_account.test.name};AccountKey=${azurerm_storage_account.test.primary_access_key}"
-    aof_storage_connection_string_1 = "DefaultEndpointsProtocol=https;BlobEndpoint=${azurerm_storage_account.test.primary_blob_endpoint};AccountName=${azurerm_storage_account.test.name};AccountKey=${azurerm_storage_account.test.secondary_access_key}"
+    aof_storage_connection_string_0 = azurerm_storage_account.test.primary_connection_string
+    aof_storage_connection_string_1 = azurerm_storage_account.test2.primary_connection_string
   }
 }
-`, data.RandomInteger, data.Locations.Primary, data.RandomString, data.RandomInteger)
+`, data.RandomInteger, data.Locations.Primary, data.RandomString, data.RandomString, data.RandomInteger)
+}
+
+func (RedisCacheResource) ignoreAOFBackupEnableWhenSKUNotPremium(data acceptance.TestData, maxMemoryPolicy string) string {
+	return fmt.Sprintf(`
+provider "azurerm" {
+  features {}
+}
+
+resource "azurerm_resource_group" "test" {
+  name     = "acctestRG-%d"
+  location = "%s"
+}
+
+resource "azurerm_storage_account" "test" {
+  name                     = "acctestsa%s"
+  resource_group_name      = azurerm_resource_group.test.name
+  location                 = azurerm_resource_group.test.location
+  account_tier             = "Standard"
+  account_replication_type = "GRS"
+
+  tags = {
+    environment = "staging"
+  }
+}
+
+resource "azurerm_storage_account" "test2" {
+  name                     = "acctestsa2%s"
+  resource_group_name      = azurerm_resource_group.test.name
+  location                 = azurerm_resource_group.test.location
+  account_tier             = "Standard"
+  account_replication_type = "GRS"
+
+  tags = {
+    environment = "staging"
+  }
+}
+
+resource "azurerm_redis_cache" "test" {
+  name                 = "acctestRedis-%d"
+  location             = azurerm_resource_group.test.location
+  resource_group_name  = azurerm_resource_group.test.name
+  capacity             = 1
+  family               = "C"
+  sku_name             = "Basic"
+  non_ssl_port_enabled = false
+
+  redis_configuration {
+    aof_backup_enabled = false
+    maxmemory_reserved = 125
+    maxmemory_delta    = 125
+    maxmemory_policy   = "%s"
+  }
+}
+`, data.RandomInteger, data.Locations.Primary, data.RandomString, data.RandomString, data.RandomInteger, maxMemoryPolicy)
 }
 
 func (RedisCacheResource) patchSchedule(data acceptance.TestData) string {
@@ -848,13 +1124,13 @@ resource "azurerm_resource_group" "test" {
 }
 
 resource "azurerm_redis_cache" "test" {
-  name                = "acctestRedis-%d"
-  location            = azurerm_resource_group.test.location
-  resource_group_name = azurerm_resource_group.test.name
-  capacity            = 1
-  family              = "P"
-  sku_name            = "Premium"
-  enable_non_ssl_port = false
+  name                 = "acctestRedis-%d"
+  location             = azurerm_resource_group.test.location
+  resource_group_name  = azurerm_resource_group.test.name
+  capacity             = 1
+  family               = "P"
+  sku_name             = "Premium"
+  non_ssl_port_enabled = false
 
   redis_configuration {
     maxmemory_reserved = 642
@@ -890,7 +1166,7 @@ resource "azurerm_redis_cache" "test" {
   family                        = "C"
   sku_name                      = "Basic"
   minimum_tls_version           = "1.2"
-  enable_non_ssl_port           = false
+  non_ssl_port_enabled          = false
   public_network_access_enabled = false
 }
 `, data.RandomInteger, data.Locations.Primary, data.RandomInteger)
@@ -920,13 +1196,13 @@ resource "azurerm_storage_account" "test" {
 }
 
 resource "azurerm_redis_cache" "test" {
-  name                = "acctestRedis-%d"
-  location            = azurerm_resource_group.test.location
-  resource_group_name = azurerm_resource_group.test.name
-  capacity            = 3
-  family              = "P"
-  sku_name            = "Premium"
-  enable_non_ssl_port = false
+  name                 = "acctestRedis-%d"
+  location             = azurerm_resource_group.test.location
+  resource_group_name  = azurerm_resource_group.test.name
+  capacity             = 3
+  family               = "P"
+  sku_name             = "Premium"
+  non_ssl_port_enabled = false
 
   redis_configuration {
     notify_keyspace_events = "KAE"
@@ -951,6 +1227,10 @@ resource "azurerm_virtual_network" "test" {
   address_space       = ["10.0.0.0/16"]
   location            = azurerm_resource_group.test.location
   resource_group_name = azurerm_resource_group.test.name
+
+  lifecycle {
+    ignore_changes = [subnet]
+  }
 }
 
 resource "azurerm_subnet" "test" {
@@ -961,14 +1241,14 @@ resource "azurerm_subnet" "test" {
 }
 
 resource "azurerm_redis_cache" "test" {
-  name                = "acctestRedis-%d"
-  location            = azurerm_resource_group.test.location
-  resource_group_name = azurerm_resource_group.test.name
-  capacity            = 1
-  family              = "P"
-  sku_name            = "Premium"
-  enable_non_ssl_port = false
-  subnet_id           = azurerm_subnet.test.id
+  name                 = "acctestRedis-%d"
+  location             = azurerm_resource_group.test.location
+  resource_group_name  = azurerm_resource_group.test.name
+  capacity             = 1
+  family               = "P"
+  sku_name             = "Premium"
+  non_ssl_port_enabled = false
+  subnet_id            = azurerm_subnet.test.id
   redis_configuration {
   }
 }
@@ -991,6 +1271,10 @@ resource "azurerm_virtual_network" "test" {
   address_space       = ["10.0.0.0/16"]
   location            = azurerm_resource_group.test.location
   resource_group_name = azurerm_resource_group.test.name
+
+  lifecycle {
+    ignore_changes = [subnet]
+  }
 }
 
 resource "azurerm_subnet" "test" {
@@ -1007,7 +1291,7 @@ resource "azurerm_redis_cache" "test" {
   capacity                  = 1
   family                    = "P"
   sku_name                  = "Premium"
-  enable_non_ssl_port       = false
+  non_ssl_port_enabled      = false
   subnet_id                 = azurerm_subnet.test.id
   private_static_ip_address = "10.0.1.20"
   redis_configuration {
@@ -1032,6 +1316,10 @@ resource "azurerm_virtual_network" "test" {
   address_space       = ["10.0.0.0/16"]
   location            = azurerm_resource_group.test.location
   resource_group_name = azurerm_resource_group.test.name
+
+  lifecycle {
+    ignore_changes = [subnet]
+  }
 }
 
 resource "azurerm_subnet" "test" {
@@ -1042,14 +1330,14 @@ resource "azurerm_subnet" "test" {
 }
 
 resource "azurerm_redis_cache" "test" {
-  name                = "acctestRedis-%d"
-  location            = azurerm_resource_group.test.location
-  resource_group_name = azurerm_resource_group.test.name
-  capacity            = 1
-  family              = "P"
-  sku_name            = "Premium"
-  enable_non_ssl_port = false
-  subnet_id           = azurerm_subnet.test.id
+  name                 = "acctestRedis-%d"
+  location             = azurerm_resource_group.test.location
+  resource_group_name  = azurerm_resource_group.test.name
+  capacity             = 1
+  family               = "P"
+  sku_name             = "Premium"
+  non_ssl_port_enabled = false
+  subnet_id            = azurerm_subnet.test.id
   redis_configuration {
   }
   zones = ["1"]
@@ -1073,6 +1361,10 @@ resource "azurerm_virtual_network" "test" {
   address_space       = ["10.0.0.0/16"]
   location            = azurerm_resource_group.test.location
   resource_group_name = azurerm_resource_group.test.name
+
+  lifecycle {
+    ignore_changes = [subnet]
+  }
 }
 
 resource "azurerm_subnet" "test" {
@@ -1083,16 +1375,16 @@ resource "azurerm_subnet" "test" {
 }
 
 resource "azurerm_redis_cache" "test" {
-  name                = "acctestRedis-%d"
-  location            = azurerm_resource_group.test.location
-  resource_group_name = azurerm_resource_group.test.name
-  capacity            = 1
-  family              = "P"
-  sku_name            = "Premium"
-  enable_non_ssl_port = false
-  subnet_id           = azurerm_subnet.test.id
+  name                 = "acctestRedis-%d"
+  location             = azurerm_resource_group.test.location
+  resource_group_name  = azurerm_resource_group.test.name
+  capacity             = 1
+  family               = "P"
+  sku_name             = "Premium"
+  non_ssl_port_enabled = false
+  subnet_id            = azurerm_subnet.test.id
   redis_configuration {
-    enable_authentication = false
+    authentication_enabled = false
   }
 }
 `, data.RandomInteger, data.Locations.Primary, data.RandomInteger, data.RandomInteger)
@@ -1110,14 +1402,14 @@ resource "azurerm_resource_group" "test" {
 }
 
 resource "azurerm_redis_cache" "test" {
-  name                = "acctestRedis-%d"
-  location            = azurerm_resource_group.test.location
-  resource_group_name = azurerm_resource_group.test.name
-  capacity            = 3
-  family              = "P"
-  sku_name            = "Premium"
-  enable_non_ssl_port = false
-  replicas_per_master = 3
+  name                 = "acctestRedis-%d"
+  location             = azurerm_resource_group.test.location
+  resource_group_name  = azurerm_resource_group.test.name
+  capacity             = 3
+  family               = "P"
+  sku_name             = "Premium"
+  non_ssl_port_enabled = false
+  replicas_per_master  = 3
 }
 `, data.RandomInteger, data.Locations.Primary, data.RandomInteger)
 }
@@ -1140,7 +1432,7 @@ resource "azurerm_redis_cache" "test" {
   capacity             = 3
   family               = "P"
   sku_name             = "Premium"
-  enable_non_ssl_port  = false
+  non_ssl_port_enabled = false
   replicas_per_primary = 3
 }
 `, data.RandomInteger, data.Locations.Primary, data.RandomInteger)
@@ -1158,38 +1450,14 @@ resource "azurerm_resource_group" "test" {
 }
 
 resource "azurerm_redis_cache" "test" {
-  name                = "acctestRedis-%d"
-  location            = azurerm_resource_group.test.location
-  resource_group_name = azurerm_resource_group.test.name
-  capacity            = 3
-  family              = "P"
-  sku_name            = "Premium"
-  enable_non_ssl_port = false
-  redis_version       = "4"
-}
-`, data.RandomInteger, data.Locations.Primary, data.RandomInteger)
-}
-
-func (RedisCacheResource) redisVersion6(data acceptance.TestData) string {
-	return fmt.Sprintf(`
-provider "azurerm" {
-  features {}
-}
-
-resource "azurerm_resource_group" "test" {
-  name     = "acctestRG-redis-%d"
-  location = "%s"
-}
-
-resource "azurerm_redis_cache" "test" {
-  name                = "acctestRedis-%d"
-  location            = azurerm_resource_group.test.location
-  resource_group_name = azurerm_resource_group.test.name
-  capacity            = 3
-  family              = "P"
-  sku_name            = "Premium"
-  enable_non_ssl_port = false
-  redis_version       = "6"
+  name                 = "acctestRedis-%d"
+  location             = azurerm_resource_group.test.location
+  resource_group_name  = azurerm_resource_group.test.name
+  capacity             = 3
+  family               = "P"
+  sku_name             = "Premium"
+  non_ssl_port_enabled = false
+  redis_version        = "6"
 }
 `, data.RandomInteger, data.Locations.Primary, data.RandomInteger)
 }
@@ -1206,13 +1474,13 @@ resource "azurerm_resource_group" "test" {
 }
 
 resource "azurerm_redis_cache" "test" {
-  name                = "acctestRedis-%d"
-  location            = azurerm_resource_group.test.location
-  resource_group_name = azurerm_resource_group.test.name
-  capacity            = 3
-  family              = "P"
-  sku_name            = "Premium"
-  enable_non_ssl_port = false
+  name                 = "acctestRedis-%d"
+  location             = azurerm_resource_group.test.location
+  resource_group_name  = azurerm_resource_group.test.name
+  capacity             = 3
+  family               = "P"
+  sku_name             = "Premium"
+  non_ssl_port_enabled = false
   tenant_settings = {
     config = "config"
   }
@@ -1232,14 +1500,14 @@ resource "azurerm_resource_group" "test" {
 }
 
 resource "azurerm_redis_cache" "test" {
-  name                = "acctestRedis-%d"
-  location            = azurerm_resource_group.test.location
-  resource_group_name = azurerm_resource_group.test.name
-  capacity            = 2
-  family              = "C"
-  sku_name            = "Basic"
-  enable_non_ssl_port = false
-  minimum_tls_version = "1.2"
+  name                 = "acctestRedis-%d"
+  location             = azurerm_resource_group.test.location
+  resource_group_name  = azurerm_resource_group.test.name
+  capacity             = 2
+  family               = "P"
+  sku_name             = "Premium"
+  non_ssl_port_enabled = false
+  minimum_tls_version  = "1.2"
 
   redis_configuration {
     maxmemory_policy = "%s"
@@ -1266,13 +1534,13 @@ resource "azurerm_resource_group" "test" {
 }
 
 resource "azurerm_redis_cache" "test" {
-  name                = "acctestRedis-%d"
-  location            = azurerm_resource_group.test.location
-  resource_group_name = azurerm_resource_group.test.name
-  capacity            = 1
-  family              = "C"
-  sku_name            = "Standard"
-  enable_non_ssl_port = false
+  name                 = "acctestRedis-%d"
+  location             = azurerm_resource_group.test.location
+  resource_group_name  = azurerm_resource_group.test.name
+  capacity             = 1
+  family               = "C"
+  sku_name             = "Standard"
+  non_ssl_port_enabled = false
   redis_configuration {
   }
 
@@ -1285,7 +1553,6 @@ resource "azurerm_redis_cache" "test" {
   }
 }
 `, data.RandomInteger, data.Locations.Primary, data.RandomInteger)
-
 }
 
 func (RedisCacheResource) userAssignedIdentity(data acceptance.TestData) string {
@@ -1306,13 +1573,13 @@ resource "azurerm_user_assigned_identity" "test" {
 }
 
 resource "azurerm_redis_cache" "test" {
-  name                = "acctestRedis-%d"
-  location            = azurerm_resource_group.test.location
-  resource_group_name = azurerm_resource_group.test.name
-  capacity            = 1
-  family              = "C"
-  sku_name            = "Standard"
-  enable_non_ssl_port = false
+  name                 = "acctestRedis-%d"
+  location             = azurerm_resource_group.test.location
+  resource_group_name  = azurerm_resource_group.test.name
+  capacity             = 1
+  family               = "C"
+  sku_name             = "Standard"
+  non_ssl_port_enabled = false
   redis_configuration {
   }
 
@@ -1340,13 +1607,13 @@ resource "azurerm_resource_group" "test" {
 }
 
 resource "azurerm_redis_cache" "test" {
-  name                = "acctestRedis-%d"
-  location            = azurerm_resource_group.test.location
-  resource_group_name = azurerm_resource_group.test.name
-  capacity            = 1
-  family              = "C"
-  sku_name            = "Basic"
-  enable_non_ssl_port = false
+  name                 = "acctestRedis-%d"
+  location             = azurerm_resource_group.test.location
+  resource_group_name  = azurerm_resource_group.test.name
+  capacity             = 1
+  family               = "C"
+  sku_name             = "Basic"
+  non_ssl_port_enabled = false
   redis_configuration {
   }
 
@@ -1357,22 +1624,30 @@ resource "azurerm_redis_cache" "test" {
 `, data.RandomInteger, data.Locations.Primary, data.RandomInteger)
 }
 
-func testCheckSSLInConnectionString(resourceName string, propertyName string, requireSSL bool) acceptance.TestCheckFunc {
-	return func(s *acceptance.State) error {
-		// Ensure we have enough information in state to look up in API
-		rs, ok := s.RootModule().Resources[resourceName]
-		if !ok {
-			return fmt.Errorf("Not found: %s", resourceName)
-		}
+func (RedisCacheResource) accessKeysAuthentication(data acceptance.TestData, accessKeysAuthenticationEnabled bool, activeDirectoryAuthenticationEnabled bool) string {
+	return fmt.Sprintf(`
+provider "azurerm" {
+  features {}
+}
 
-		connectionString := rs.Primary.Attributes[propertyName]
-		if strings.Contains(connectionString, fmt.Sprintf("ssl=%t", requireSSL)) {
-			return nil
-		}
-		if strings.Contains(connectionString, fmt.Sprintf("ssl=%t", !requireSSL)) {
-			return fmt.Errorf("Bad: wrong SSL setting in connection string: %s", propertyName)
-		}
+resource "azurerm_resource_group" "test" {
+  name     = "acctestRG-%d"
+  location = "%s"
+}
 
-		return fmt.Errorf("Bad: missing SSL setting in connection string: %s", propertyName)
-	}
+resource "azurerm_redis_cache" "test" {
+  name                               = "acctestRedis-%d"
+  location                           = azurerm_resource_group.test.location
+  resource_group_name                = azurerm_resource_group.test.name
+  capacity                           = 1
+  family                             = "C"
+  sku_name                           = "Basic"
+  non_ssl_port_enabled               = false
+  minimum_tls_version                = "1.2"
+  access_keys_authentication_enabled = %t
+
+  redis_configuration {
+    active_directory_authentication_enabled = %t
+  }
+}`, data.RandomInteger, data.Locations.Primary, data.RandomInteger, accessKeysAuthenticationEnabled, activeDirectoryAuthenticationEnabled)
 }

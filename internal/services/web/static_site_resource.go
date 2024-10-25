@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package web
 
 import (
@@ -5,7 +8,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/Azure/azure-sdk-for-go/services/web/mgmt/2021-02-01/web"
+	"github.com/Azure/azure-sdk-for-go/services/web/mgmt/2021-02-01/web" // nolint: staticcheck
 	"github.com/hashicorp/go-azure-helpers/lang/response"
 	"github.com/hashicorp/go-azure-helpers/resourcemanager/commonschema"
 	"github.com/hashicorp/go-azure-helpers/resourcemanager/identity"
@@ -23,10 +26,11 @@ import (
 
 func resourceStaticSite() *pluginsdk.Resource {
 	return &pluginsdk.Resource{
-		Create: resourceStaticSiteCreateOrUpdate,
-		Read:   resourceStaticSiteRead,
-		Update: resourceStaticSiteCreateOrUpdate,
-		Delete: resourceStaticSiteDelete,
+		DeprecationMessage: "This resource has been deprecated in favour of `azurerm_static_web_app` and will be removed in a future release.",
+		Create:             resourceStaticSiteCreateOrUpdate,
+		Read:               resourceStaticSiteRead,
+		Update:             resourceStaticSiteCreateOrUpdate,
+		Delete:             resourceStaticSiteDelete,
 		Importer: pluginsdk.ImporterValidatingResourceId(func(id string) error {
 			_, err := parse.StaticSiteID(id)
 			return err
@@ -71,6 +75,14 @@ func resourceStaticSite() *pluginsdk.Resource {
 				}, false),
 			},
 
+			"app_settings": {
+				Type:     pluginsdk.TypeMap,
+				Optional: true,
+				Elem: &pluginsdk.Schema{
+					Type: pluginsdk.TypeString,
+				},
+			},
+
 			"default_host_name": {
 				Type:     pluginsdk.TypeString,
 				Computed: true,
@@ -79,8 +91,9 @@ func resourceStaticSite() *pluginsdk.Resource {
 			"identity": commonschema.SystemAssignedUserAssignedIdentityOptional(),
 
 			"api_key": {
-				Type:     pluginsdk.TypeString,
-				Computed: true,
+				Type:      pluginsdk.TypeString,
+				Computed:  true,
+				Sensitive: true,
 			},
 
 			"tags": tags.Schema(),
@@ -145,6 +158,16 @@ func resourceStaticSiteCreateOrUpdate(d *pluginsdk.ResourceData, meta interface{
 	}
 
 	d.SetId(id.ID())
+
+	if d.HasChange("app_settings") {
+		settings := web.StringDictionary{
+			Properties: expandStaticSiteAppSettings(d),
+		}
+
+		if _, err := client.CreateOrUpdateStaticSiteAppSettings(ctx, id.ResourceGroup, id.Name, settings); err != nil {
+			return fmt.Errorf("updating Application Settings for %s: %+v", id, err)
+		}
+	}
 
 	return resourceStaticSiteRead(d, meta)
 }
@@ -211,6 +234,15 @@ func resourceStaticSiteRead(d *pluginsdk.ResourceData, meta interface{}) error {
 		apiKey = *pkey
 	}
 	d.Set("api_key", apiKey)
+
+	appSettingsResp, err := client.ListStaticSiteAppSettings(ctx, id.ResourceGroup, id.Name)
+	if err != nil {
+		return fmt.Errorf("making Read request for app settings on %s: %+v", id, err)
+	}
+
+	if err := d.Set("app_settings", appSettingsResp.Properties); err != nil {
+		return fmt.Errorf("setting `app_settings`: %s", err)
+	}
 
 	return tags.FlattenAndSet(d, resp.Tags)
 }
@@ -285,4 +317,15 @@ func flattenStaticSiteIdentity(input *web.ManagedServiceIdentity) (*[]interface{
 	}
 
 	return identity.FlattenSystemAndUserAssignedMap(transform)
+}
+
+func expandStaticSiteAppSettings(d *pluginsdk.ResourceData) map[string]*string {
+	input := d.Get("app_settings").(map[string]interface{})
+	output := make(map[string]*string, len(input))
+
+	for k, v := range input {
+		output[k] = utils.String(v.(string))
+	}
+
+	return output
 }

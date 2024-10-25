@@ -48,6 +48,8 @@ The following arguments are supported:
 
 * `storage_account_id` - (Required) Specifies the ID of the Storage Account in which the Data Lake Gen2 File System should exist. Changing this forces a new resource to be created.
 
+* `default_encryption_scope` - (Optional) The default encryption scope to use for this filesystem. Changing this forces a new resource to be created.
+
 * `properties` - (Optional) A mapping of Key to Base64-Encoded Values which should be assigned to this Data Lake Gen2 File System.
 
 * `ace` - (Optional) One or more `ace` blocks as defined below to specify the entries for the ACL for the path.
@@ -74,7 +76,7 @@ More details on ACLs can be found here: <https://docs.microsoft.com/azure/storag
 
 ## Attributes Reference
 
-The following attributes are exported in addition to the arguments listed above:
+In addition to the Arguments listed above - the following Attributes are exported:
 
 * `id` - The ID of the Data Lake Gen2 File System.
 

@@ -1,8 +1,11 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package commonschema
 
 import (
 	"fmt"
-	
+
 	"github.com/hashicorp/go-azure-helpers/resourcemanager/resourceids"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
@@ -12,6 +15,14 @@ func ResourceIDReferenceOptional(id resourceids.ResourceId) *schema.Schema {
 	return &schema.Schema{
 		Type:         schema.TypeString,
 		Optional:     true,
+		ValidateFunc: validationFunctionForResourceID(id),
+	}
+}
+
+// ResourceIDReferenceElem returns the schema for a Resource ID Reference which is compatible with the Elem of lists and sets.
+func ResourceIDReferenceElem(id resourceids.ResourceId) *schema.Schema {
+	return &schema.Schema{
+		Type:         schema.TypeString,
 		ValidateFunc: validationFunctionForResourceID(id),
 	}
 }

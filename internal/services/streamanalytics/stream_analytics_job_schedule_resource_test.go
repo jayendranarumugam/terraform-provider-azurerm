@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package streamanalytics_test
 
 import (
@@ -6,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/go-azure-helpers/lang/response"
+	"github.com/hashicorp/go-azure-sdk/resource-manager/streamanalytics/2021-10-01-preview/streamingjobs"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/acceptance"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/acceptance/check"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/clients"
@@ -27,7 +32,9 @@ func TestAccStreamAnalyticsJobSchedule_basic(t *testing.T) {
 				check.That(data.ResourceName).ExistsInAzure(r),
 			),
 		},
-		data.ImportStep(),
+		// todo framework
+		// `last_output_time` has different values between refresh steps so we'll ignore it until framework goes in
+		data.ImportStep("last_output_time"),
 	})
 }
 
@@ -42,7 +49,9 @@ func TestAccStreamAnalyticsJobSchedule_customTime(t *testing.T) {
 				check.That(data.ResourceName).ExistsInAzure(r),
 			),
 		},
-		data.ImportStep(),
+		// todo framework
+		// `last_output_time` has different values between refresh steps so we'll ignore it until framework goes in
+		data.ImportStep("last_output_time"),
 	})
 }
 
@@ -57,14 +66,18 @@ func TestAccStreamAnalyticsJobSchedule_lastOutputEventTime(t *testing.T) {
 				check.That(data.ResourceName).ExistsInAzure(r),
 			),
 		},
-		data.ImportStep(),
+		// todo framework
+		// `last_output_time` has different values between refresh steps so we'll ignore it until framework goes in
+		data.ImportStep("last_output_time"),
 		{
 			Config: r.lastOutputEventTime(data),
 			Check: acceptance.ComposeTestCheckFunc(
 				check.That(data.ResourceName).ExistsInAzure(r),
 			),
 		},
-		data.ImportStep(),
+		// todo framework
+		// `last_output_time` has different values between refresh steps so we'll ignore it until framework goes in
+		data.ImportStep("last_output_time"),
 	})
 }
 
@@ -74,14 +87,17 @@ func (r StreamAnalyticsJobScheduleResource) Exists(ctx context.Context, client *
 		return nil, err
 	}
 
-	resp, err := client.StreamAnalytics.JobsClient.Get(ctx, id.ResourceGroup, id.StreamingjobName, "")
+	streamingJobId := streamingjobs.NewStreamingJobID(id.SubscriptionId, id.ResourceGroup, id.StreamingJobName)
+
+	var opts streamingjobs.GetOperationOptions
+	resp, err := client.StreamAnalytics.JobsClient.Get(ctx, streamingJobId, opts)
 	if err != nil {
-		if utils.ResponseWasNotFound(resp.Response) {
-			return utils.Bool(false), err
+		if response.WasNotFound(resp.HttpResponse) {
+			return nil, err
 		}
 		return nil, fmt.Errorf("retrieving %s: %+v", *id, err)
 	}
-	return utils.Bool(resp.StreamingJobProperties != nil && resp.StreamingJobProperties.OutputStartTime != nil), nil
+	return utils.Bool(resp.Model != nil && resp.Model.Properties.OutputStartTime != nil), nil
 }
 
 func (r StreamAnalyticsJobScheduleResource) basic(data acceptance.TestData) string {

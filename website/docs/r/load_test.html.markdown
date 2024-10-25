@@ -15,7 +15,16 @@ Manages a Load Test Service.
 ## Example Usage
 
 ```hcl
-resource "azurerm_load_example" "example" {
+resource "azurerm_resource_group" "example" {
+  name     = "example-resources"
+  location = "West Europe"
+}
+resource "azurerm_user_assigned_identity" "example" {
+  name                = "example"
+  resource_group_name = azurerm_resource_group.example.name
+  location            = azurerm_resource_group.example.location
+}
+resource "azurerm_load_test" "example" {
   location            = azurerm_resource_group.example.location
   name                = "example"
   resource_group_name = azurerm_resource_group.example.name
@@ -34,21 +43,50 @@ The following arguments are supported:
 
 * `description` - (Optional) Description of the resource. Changing this forces a new Load Test to be created.
 
-* `identity` - (Optional) Specifies the Managed Identity which should be assigned to this Load Test.
+* `identity` - (Optional) An `identity` block as defined below. Specifies the Managed Identity which should be assigned to this Load Test.
+
+* `encryption` - (Optional) An `encryption` block as defined below. Changing this forces a new Load Test to be created.
 
 * `tags` - (Optional) A mapping of tags which should be assigned to the Load Test.
 
+---
+
+The `identity` block supports the following arguments:
+
+* `type` - (Required) Specifies the type of Managed Identity that should be assigned to this Load Test. Possible values are `SystemAssigned`, `SystemAssigned, UserAssigned` and `UserAssigned`.
+
+* `identity_ids` - (Optional) A list of the User Assigned Identity IDs that should be assigned to this Load Test.
+
+In addition to the arguments defined above, the `identity` block exports the following attributes:
+
+* `principal_id` - The Principal ID for the System-Assigned Managed Identity assigned to this Load Test.
+* 
+* `tenant_id` - The Tenant ID for the System-Assigned Managed Identity assigned to this Load Test.
+
+---
+
+The `encryption` block supports the following arguments:
+
+* `key_url` - (Required) The URI specifying the Key vault and key to be used to encrypt data in this resource. The URI should include the key version. Changing this forces a new Load Test to be created.
+
+* `identity` - (Required) An `identity` block as defined below. Changing this forces a new Load Test to be created.
+
+---
+
+The `identity` block for `encryption` supports the following arguments:
+
+* `type` - (Required) Specifies the type of Managed Identity that should be assigned to this Load Test Encryption. Possible values are `SystemAssigned` or `UserAssigned`. Changing this forces a new Load Test to be created.
+
+* `identity_id` - (Required) The User Assigned Identity ID that should be assigned to this Load Test Encryption. Changing this forces a new Load Test to be created.
+
+
 ## Attributes Reference
 
-The following attributes are exported:
+In addition to the Arguments listed above - the following Attributes are exported:
 
 * `id` - The ID of the Load Test.
 
 * `data_plane_uri` - Resource data plane URI.
-
----
-
-
 
 ## Timeouts
 

@@ -50,13 +50,15 @@ The following arguments are supported:
 
 * `allowed_tenants` - (Required) List of allowed AAD Tenants.
 
-* `signin_tenant` - (Optional) The AAD Tenant to use instead of Common when logging into Active Directory
+* `client_library` - (Optional) The client library to be used in the AAD Identity Provider.
+
+* `signin_tenant` - (Optional) The AAD Tenant to use instead of Common when logging into Active Directory.
 
 ---
 
 ## Attributes Reference
 
-In addition to all arguments above, the following attributes are exported:
+In addition to the Arguments listed above - the following Attributes are exported:
 
 * `id` - The ID of the API Management AAD Identity Provider.
 

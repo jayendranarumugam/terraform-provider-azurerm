@@ -32,6 +32,7 @@ resource "azurerm_data_protection_backup_policy_disk" "example" {
 
   backup_repeating_time_intervals = ["R/2021-05-19T06:33:16+00:00/PT4H"]
   default_retention_duration      = "P7D"
+  time_zone                       = "W. Europe Standard Time"
 
   retention_rule {
     name     = "Daily"
@@ -59,17 +60,15 @@ The following arguments are supported:
 
 * `name` - (Required) The name which should be used for this Backup Policy Disk. Changing this forces a new Backup Policy Disk to be created.
 
-* `resource_group_name` - (Required) The name of the Resource Group where the Backup Policy Disk should exist. Changing this forces a new Backup Policy Disk to be created.
-
 * `vault_id` - (Required) The ID of the Backup Vault within which the Backup Policy Disk should exist. Changing this forces a new Backup Policy Disk to be created.
 
 * `backup_repeating_time_intervals` - (Required) Specifies a list of repeating time interval. It should follow `ISO 8601` repeating time interval . Changing this forces a new Backup Policy Disk to be created.
 
 * `default_retention_duration` - (Required) The duration of default retention rule. It should follow `ISO 8601` duration format. Changing this forces a new Backup Policy Disk to be created.
 
----
-
 * `retention_rule` - (Optional) One or more `retention_rule` blocks as defined below. Changing this forces a new Backup Policy Disk to be created.
+
+* `time_zone` - (Optional) Specifies the Time Zone which should be used by the backup schedule. Changing this forces a new Backup Policy Disk to be created.
 
 ---
 
@@ -101,7 +100,6 @@ The `timeouts` block allows you to specify [timeouts](https://www.terraform.io/l
 
 * `create` - (Defaults to 30 minutes) Used when creating the Backup Policy Disk.
 * `read` - (Defaults to 5 minutes) Used when retrieving the Backup Policy Disk.
-* `update` - (Defaults to 30 minutes) Used when updating the Backup Policy Disk.
 * `delete` - (Defaults to 30 minutes) Used when deleting the Backup Policy Disk.
 
 ## Import

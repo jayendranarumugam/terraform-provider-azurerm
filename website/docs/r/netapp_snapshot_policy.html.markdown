@@ -62,23 +62,25 @@ resource "azurerm_netapp_snapshot_policy" "example" {
 
 The following arguments are supported:
 
-* `name` - (Required) The name of the NetApp Snapshot Policy. Changing this forces a new resource to be created.
+* `name` - (Required) The name of the NetApp Snapshot Policy. Changing this forces a new resource to be created. 
 
-* `resource_group_name` - (Required) The name of the resource group where the NetApp Snapshot Policy should be created. Changing this forces a new resource to be created.
+* `resource_group_name` - (Required) The name of the resource group where the NetApp Snapshot Policy should be created. Changing this forces a new resource to be created. 
 
-* `location` - (Required) Specifies the supported Azure location where the resource exists. Changing this forces a new resource to be created.
+* `location` - (Required) Specifies the supported Azure location where the resource exists. Changing this forces a new resource to be created. 
 
-* `account_name` - (Required) The name of the NetApp Account in which the NetApp Snapshot Policy should be created. Changing this forces a new resource to be created.
+* `account_name` - (Required) The name of the NetApp Account in which the NetApp Snapshot Policy should be created. Changing this forces a new resource to be created. 
 
 * `enabled` - (Required) Defines that the NetApp Snapshot Policy is enabled or not.
 
-* `hourly_schedule` - (Optional) Sets an hourly snapshot schedule. See details in below `hourly_schedule` block.
+* `hourly_schedule` - (Optional) Sets an hourly snapshot schedule. A `hourly_schedule` block as defined below.
 
-* `daily_schedule` - (Optional) Sets a daily snapshot schedule. See details in below `daily_schedule` block.
+* `daily_schedule` - (Optional) Sets a daily snapshot schedule. A `daily_schedule` block as defined below.
   
-* `weekly_schedule` - (Optional) Sets a weekly snapshot schedule. See details in below `weekly_schedule` block.
+* `weekly_schedule` - (Optional) Sets a weekly snapshot schedule. A `weekly_schedule` block as defined below.
 
-* `monthly_schedule` - (Optional) Sets a monthly snapshot schedule. See details in below `monthly_schedule` block.
+* `monthly_schedule` - (Optional) Sets a monthly snapshot schedule. A `monthly_schedule` block as defined below.
+
+* `tags` - (Optional) A mapping of tags to assign to the resource.
 
 ---
 
@@ -112,11 +114,11 @@ A `weekly_schedule` block supports the following:
 
 ---
 
-A `weekly_schedule` block supports the following:
+A `monthly_schedule` block supports the following:
 
 * `snapshots_to_keep` - (Required) How many hourly snapshots to keep, valid range is from 0 to 255.
 
-* `monthly_schedule` - (Required) List of the days of the month when the snapshots will be created, valid range is from 1 to 30.
+* `days_of_month` - (Required) List of the days of the month when the snapshots will be created, valid range is from 1 to 30.
 
 * `hour` - (Required) Hour of the day that the snapshots will be created, valid range is from 0 to 23.
 
@@ -126,19 +128,19 @@ A `weekly_schedule` block supports the following:
 
 ## Attributes Reference
 
-The following attributes are exported:
+In addition to the Arguments listed above - the following Attributes are exported:
 
 * `id` - The ID of the NetApp Snapshot.
   
-* `name` - The name of the NetApp Snapshot Policy.
+* `name` - (Required) The name of the NetApp Snapshot Policy. Changing this forces a new resource to be created.
 
-* `resource_group_name` - The name of the resource group where the NetApp Snapshot Policy should be created.
+* `resource_group_name` - (Required) The name of the resource group where the NetApp Snapshot Policy should be created.
   
-* `location` - Specifies the supported Azure location where the resource exists.
+* `location` - (Required) Specifies the supported Azure location where the resource exists. Changing this forces a new resource to be created.
 
-* `account_name` - The name of the NetApp Account in which the NetApp Snapshot Policy was created.
+* `account_name` - (Required) The name of the NetApp Account in which the NetApp Snapshot Policy was created. Changing this forces a new resource to be created.
 
-* `enabled` - Defines that the NetApp Snapshot Policy is enabled or not.
+* `enabled` - (Required) Defines that the NetApp Snapshot Policy is enabled or not.
 
 * `hourly_schedule` - Hourly snapshot schedule.
 

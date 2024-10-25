@@ -22,7 +22,7 @@ resource "azurerm_elastic_cloud_elasticsearch" "test" {
   name                        = "example-elasticsearch"
   resource_group_name         = azurerm_resource_group.test.name
   location                    = azurerm_resource_group.test.location
-  sku_name                    = "ess-monthly-consumption_Monthly"
+  sku_name                    = "ess-consumption-2024_Monthly"
   elastic_cloud_email_address = "user@example.com"
 }
 ```
@@ -35,11 +35,15 @@ The following arguments are supported:
 
 * `location` - (Required) The Azure Region where the Elasticsearch resource should exist. Changing this forces a new Elasticsearch to be created.
 
-* `name` - (Required) The name which should be used for this Elasticsearch resource. Changing this forces a new Elasticsearch to be created.
+* `name` - (Required) The name which should be used for this Elasticsearch resource. Changing this forces a new Elasticsearch to be created. 
 
 * `resource_group_name` - (Required) The name of the Resource Group where the Elasticsearch resource should exist. Changing this forces a new Elasticsearch to be created.
 
 * `sku_name` - (Required) Specifies the name of the SKU for this Elasticsearch. Changing this forces a new Elasticsearch to be created.
+
+-> **NOTE:** The SKU depends on the Elasticsearch Plans available for your account and is a combination of PlanID_Term.
+Ex: If the plan ID is "planXYZ" and term is "Yearly", the SKU will be "planXYZ_Yearly".
+You may find your eligible plans [here](https://portal.azure.com/#view/Microsoft_Azure_Marketplace/GalleryItemDetailsBladeNopdl/id/elastic.ec-azure-pp) or in the online documentation [here](https://azuremarketplace.microsoft.com/en-us/marketplace/apps/elastic.ec-azure-pp?tab=PlansAndPrice) for more details or in case of any issues with the SKU.
 
 ---
 
@@ -93,10 +97,10 @@ In addition to the Arguments listed above - the following Attributes are exporte
 
 The `timeouts` block allows you to specify [timeouts](https://www.terraform.io/language/resources/syntax#operation-timeouts) for certain actions:
 
-* `create` - (Defaults to 30 minutes) Used when creating the Elasticsearch.
+* `create` - (Defaults to 60 minutes) Used when creating the Elasticsearch.
 * `read` - (Defaults to 5 minutes) Used when retrieving the Elasticsearch.
-* `update` - (Defaults to 30 minutes) Used when updating the Elasticsearch.
-* `delete` - (Defaults to 30 minutes) Used when deleting the Elasticsearch.
+* `update` - (Defaults to 60 minutes) Used when updating the Elasticsearch.
+* `delete` - (Defaults to 60 minutes) Used when deleting the Elasticsearch.
 
 ## Import
 

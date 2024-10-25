@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package monitor_test
 
 import (
@@ -19,7 +22,6 @@ func TestAccDataSourceMonitorDiagnosticCategories_appService(t *testing.T) {
 			Config: r.appService(data),
 			Check: acceptance.ComposeTestCheckFunc(
 				check.That(data.ResourceName).Key("metrics.#").Exists(),
-				check.That(data.ResourceName).Key("logs.#").Exists(),
 				check.That(data.ResourceName).Key("log_category_types.#").Exists(),
 				check.That(data.ResourceName).Key("log_category_groups.#").Exists(),
 			),
@@ -36,7 +38,6 @@ func TestAccDataSourceMonitorDiagnosticCategories_storageAccount(t *testing.T) {
 			Config: r.storageAccount(data),
 			Check: acceptance.ComposeTestCheckFunc(
 				check.That(data.ResourceName).Key("metrics.#").Exists(),
-				check.That(data.ResourceName).Key("logs.#").Exists(),
 				check.That(data.ResourceName).Key("log_category_types.#").Exists(),
 				check.That(data.ResourceName).Key("log_category_groups.#").Exists(),
 			),

@@ -3,10 +3,10 @@ subcategory: "Synapse"
 layout: "azurerm"
 page_title: "Azure Resource Manager: azurerm_synapse_workspace_sql_aad_admin"
 description: |-
-  Manages Synapse Workspace AAD Admin
+  Manages Synapse Workspace SQL AAD Admin
 ---
 
-# azurerm_synapse_workspace_aad_admin
+# azurerm_synapse_workspace_sql_aad_admin
 
 Manages an Azure Active Directory SQL Administrator setting for a Synapse Workspace
 
@@ -50,7 +50,7 @@ resource "azurerm_key_vault_access_policy" "deployer" {
   object_id    = data.azurerm_client_config.current.object_id
 
   key_permissions = [
-    "Create", "Get", "Delete", "Purge"
+    "Create", "Get", "Delete", "Purge", "GetRotationPolicy"
   ]
 }
 

@@ -15,33 +15,39 @@ Allows you to set a user or group as the AD administrator for a PostgreSQL Flexi
 ```hcl
 data "azurerm_client_config" "current" {}
 
+data "azuread_service_principal" "example" {
+  object_id = data.azurerm_client_config.current.object_id
+}
+
 resource "azurerm_resource_group" "example" {
   name     = "example-resources"
   location = "West Europe"
 }
 
 resource "azurerm_postgresql_flexible_server" "example" {
-  name                         = "example-psqlserver"
-  resource_group_name          = azurerm_resource_group.example.name
-  location                     = azurerm_resource_group.example.location
-  version                      = "12"
-  administrator_login          = "4dm1n157r470r"
-  administrator_login_password = "4-v3ry-53cr37-p455w0rd"
-  sku_name                     = "GP_Standard_D2s_v3"
-  zone                         = "2"
+  name                   = "example-fs"
+  resource_group_name    = azurerm_resource_group.example.name
+  location               = azurerm_resource_group.example.location
+  administrator_login    = "adminTerraform"
+  administrator_password = "QAZwsx123"
+  storage_mb             = 32768
+  version                = "12"
+  sku_name               = "GP_Standard_D2s_v3"
+  zone                   = "2"
 
-  auth_config {
+  authentication {
     active_directory_auth_enabled = true
     tenant_id                     = data.azurerm_client_config.current.tenant_id
   }
+
 }
 
 resource "azurerm_postgresql_flexible_server_active_directory_administrator" "example" {
-  server_name         = azurerm_postgresql_server.example.name
+  server_name         = azurerm_postgresql_flexible_server.example.name
   resource_group_name = azurerm_resource_group.example.name
   tenant_id           = data.azurerm_client_config.current.tenant_id
-  object_id           = data.azurerm_client_config.current.object_id
-  principal_name      = "example-sp"
+  object_id           = data.azuread_service_principal.example.object_id
+  principal_name      = data.azuread_service_principal.example.display_name
   principal_type      = "ServicePrincipal"
 }
 ```
@@ -64,7 +70,7 @@ The following arguments are supported:
 
 ## Attributes Reference
 
-The following attributes are exported:
+In addition to the Arguments listed above - the following Attributes are exported:
 
 * `id` - The ID of the PostgreSQL Flexible Server Active Directory Administrator.
 
@@ -73,7 +79,6 @@ The following attributes are exported:
 The `timeouts` block allows you to specify [timeouts](https://www.terraform.io/language/resources/syntax#operation-timeouts) for certain actions:
 
 * `create` - (Defaults to 30 minutes) Used when creating the PostgreSQL Flexible Server Active Directory Administrator.
-* `update` - (Defaults to 30 minutes) Used when updating the PostgreSQL Flexible Server Active Directory Administrator.
 * `read` - (Defaults to 5 minutes) Used when retrieving the PostgreSQL Flexible Server Active Directory Administrator.
 * `delete` - (Defaults to 30 minutes) Used when deleting the PostgreSQL Flexible Server Active Directory Administrator.
 

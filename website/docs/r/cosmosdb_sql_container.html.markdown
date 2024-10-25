@@ -29,7 +29,7 @@ resource "azurerm_cosmosdb_sql_container" "example" {
   resource_group_name   = data.azurerm_cosmosdb_account.example.resource_group_name
   account_name          = data.azurerm_cosmosdb_account.example.name
   database_name         = azurerm_cosmosdb_sql_database.example.name
-  partition_key_path    = "/definition/id"
+  partition_key_paths   = ["/definition/id"]
   partition_key_version = 1
   throughput            = 400
 
@@ -67,15 +67,19 @@ The following arguments are supported:
 
 * `database_name` - (Required) The name of the Cosmos DB SQL Database to create the container within. Changing this forces a new resource to be created.
 
-* `partition_key_path` - (Required) Define a partition key. Changing this forces a new resource to be created.
+* `partition_key_paths` - (Required) A list of partition key paths. Changing this forces a new resource to be created.
 
-* `partition_key_version` - (Optional) Define a partition key version. Changing this forces a new resource to be created. Possible values are `1`and `2`. This should be set to `2` in order to use large partition keys.
+* `partition_key_kind` - (Optional) Define a partition key kind. Possible values are `Hash` and `MultiHash`. Defaults to `Hash`. Changing this forces a new resource to be created.
+
+* `partition_key_version` - (Optional) Define a partition key version. Possible values are `1`and `2`. This should be set to `2` in order to use large partition keys.
+
+-> **Note:** If `partition_key_version` is not specified when creating a new resource, you can update `partition_key_version` to `1`, updating to `2` forces a new resource to be created.
 
 * `unique_key` - (Optional) One or more `unique_key` blocks as defined below. Changing this forces a new resource to be created.
 
 * `throughput` - (Optional) The throughput of SQL container (RU/s). Must be set in increments of `100`. The minimum value is `400`. This must be set upon container creation otherwise it cannot be updated without a manual terraform destroy-apply.
 
-* `autoscale_settings` - (Optional) An `autoscale_settings` block as defined below. This must be set upon database creation otherwise it cannot be updated without a manual terraform destroy-apply. Requires `partition_key_path` to be set.
+* `autoscale_settings` - (Optional) An `autoscale_settings` block as defined below. This must be set upon database creation otherwise it cannot be updated without a manual terraform destroy-apply.
 
 ~> **Note:** Switching between autoscale and manual throughput is not supported via Terraform and must be completed via the Azure Portal and refreshed.
 
@@ -83,9 +87,9 @@ The following arguments are supported:
 
 * `default_ttl` - (Optional) The default time to live of SQL container. If missing, items are not expired automatically. If present and the value is set to `-1`, it is equal to infinity, and items don’t expire by default. If present and the value is set to some number `n` – items will expire `n` seconds after their last modified time.
 
-* `analytical_storage_ttl` - (Optional) The default time to live of Analytical Storage for this SQL container. If present and the value is set to `-1`, it is equal to infinity, and items don’t expire by default. If present and the value is set to some number `n` – items will expire `n` seconds after their last modified time. Changing this forces a new Cosmos DB SQL Container to be created when removing `analytical_storage_ttl` on an existing Cosmos DB SQL Container.
+* `analytical_storage_ttl` - (Optional) The default time to live of Analytical Storage for this SQL container. If present and the value is set to `-1`, it is equal to infinity, and items don’t expire by default. If present and the value is set to some number `n` – items will expire `n` seconds after their last modified time.
 
-* `conflict_resolution_policy` - (Optional)  A `conflict_resolution_policy` blocks as defined below.
+* `conflict_resolution_policy` - (Optional) A `conflict_resolution_policy` blocks as defined below. Changing this forces a new resource to be created.
 
 ---
 
@@ -96,7 +100,7 @@ An `autoscale_settings` block supports the following:
 ---
 A `unique_key` block supports the following:
 
-* `paths` - (Required) A list of paths to use for this unique key.
+* `paths` - (Required) A list of paths to use for this unique key. Changing this forces a new resource to be created.
 
 ---
 An `indexing_policy` block supports the following:
@@ -121,27 +125,27 @@ A `spatial_index` block supports the following:
 
 An `included_path` block supports the following:
 
-* `path` - Path for which the indexing behaviour applies to.
+* `path` - (Required) Path for which the indexing behaviour applies to.
 
 ---
 
 An `excluded_path` block supports the following:
 
-* `path` - Path that is excluded from indexing.
+* `path` - (Required) Path that is excluded from indexing.
 
 ---
 
 A `composite_index` block supports the following:
 
-* `index` - One or more `index` blocks as defined below.
+* `index` - (Required) One or more `index` blocks as defined below.
 
 ---
 
 An `index` block supports the following:
 
-* `path` - Path for which the indexing behaviour applies to.
+* `path` - (Required) Path for which the indexing behaviour applies to.
 
-* `order` - Order of the index. Possible values are `Ascending` or `Descending`.
+* `order` - (Required) Order of the index. Possible values are `Ascending` or `Descending`.
 
 ---
 
@@ -155,7 +159,7 @@ A `conflict_resolution_policy` block supports the following:
 
 ## Attributes Reference
 
-The following attributes are exported:
+In addition to the Arguments listed above - the following Attributes are exported:
 
 * `id` - The ID of the CosmosDB SQL Container.
 

@@ -1,8 +1,11 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package compute
 
 import (
-	"github.com/hashicorp/go-azure-sdk/resource-manager/compute/2022-03-02/disks"
 	"github.com/hashicorp/go-azure-sdk/resource-manager/compute/2022-03-02/snapshots"
+	"github.com/hashicorp/go-azure-sdk/resource-manager/compute/2023-04-02/disks"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/features"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/tf/pluginsdk"
 	"github.com/hashicorp/terraform-provider-azurerm/utils"
@@ -135,7 +138,7 @@ func expandSnapshotDiskEncryptionSettings(settingsList []interface{}) *snapshots
 		secretURL := dek["secret_url"].(string)
 		sourceVaultId := dek["source_vault_id"].(string)
 		diskEncryptionKey = &snapshots.KeyVaultAndSecretReference{
-			SecretUrl: secretURL,
+			SecretURL: secretURL,
 			SourceVault: snapshots.SourceVault{
 				Id: utils.String(sourceVaultId),
 			},
@@ -149,7 +152,7 @@ func expandSnapshotDiskEncryptionSettings(settingsList []interface{}) *snapshots
 		secretURL := kek["key_url"].(string)
 		sourceVaultId := kek["source_vault_id"].(string)
 		keyEncryptionKey = &snapshots.KeyVaultAndKeyReference{
-			KeyUrl: secretURL,
+			KeyURL: secretURL,
 			SourceVault: snapshots.SourceVault{
 				Id: utils.String(sourceVaultId),
 			},
@@ -179,8 +182,8 @@ func flattenSnapshotDiskEncryptionSettings(encryptionSettings *snapshots.Encrypt
 
 		if key := settings.DiskEncryptionKey; key != nil {
 			secretUrl := ""
-			if key.SecretUrl != "" {
-				secretUrl = key.SecretUrl
+			if key.SecretURL != "" {
+				secretUrl = key.SecretURL
 			}
 
 			sourceVaultId := ""
@@ -196,8 +199,8 @@ func flattenSnapshotDiskEncryptionSettings(encryptionSettings *snapshots.Encrypt
 
 		if key := settings.KeyEncryptionKey; key != nil {
 			keyUrl := ""
-			if key.KeyUrl != "" {
-				keyUrl = key.KeyUrl
+			if key.KeyURL != "" {
+				keyUrl = key.KeyURL
 			}
 
 			sourceVaultId := ""
@@ -255,7 +258,7 @@ func expandManagedDiskEncryptionSettings(settingsList []interface{}) *disks.Encr
 		secretURL := dek["secret_url"].(string)
 		sourceVaultId := dek["source_vault_id"].(string)
 		diskEncryptionKey = &disks.KeyVaultAndSecretReference{
-			SecretUrl: secretURL,
+			SecretURL: secretURL,
 			SourceVault: disks.SourceVault{
 				Id: utils.String(sourceVaultId),
 			},
@@ -269,7 +272,7 @@ func expandManagedDiskEncryptionSettings(settingsList []interface{}) *disks.Encr
 		secretURL := kek["key_url"].(string)
 		sourceVaultId := kek["source_vault_id"].(string)
 		keyEncryptionKey = &disks.KeyVaultAndKeyReference{
-			KeyUrl: secretURL,
+			KeyURL: secretURL,
 			SourceVault: disks.SourceVault{
 				Id: utils.String(sourceVaultId),
 			},
@@ -299,8 +302,8 @@ func flattenManagedDiskEncryptionSettings(encryptionSettings *disks.EncryptionSe
 
 		if key := settings.DiskEncryptionKey; key != nil {
 			secretUrl := ""
-			if key.SecretUrl != "" {
-				secretUrl = key.SecretUrl
+			if key.SecretURL != "" {
+				secretUrl = key.SecretURL
 			}
 
 			sourceVaultId := ""
@@ -316,8 +319,8 @@ func flattenManagedDiskEncryptionSettings(encryptionSettings *disks.EncryptionSe
 
 		if key := settings.KeyEncryptionKey; key != nil {
 			keyUrl := ""
-			if key.KeyUrl != "" {
-				keyUrl = key.KeyUrl
+			if key.KeyURL != "" {
+				keyUrl = key.KeyURL
 			}
 
 			sourceVaultId := ""

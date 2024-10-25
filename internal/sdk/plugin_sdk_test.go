@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package sdk
 
 import (
@@ -6,9 +9,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
+	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/terraform"
 )
 
 func TestAccPluginSDKAndDecoder(t *testing.T) {
@@ -19,15 +22,15 @@ func TestAccPluginSDKAndDecoder(t *testing.T) {
 	}
 	type MyType struct {
 		Hello         string             `tfschema:"hello"`
-		RandomNumber  int                `tfschema:"random_number"`
+		RandomNumber  int64              `tfschema:"random_number"`
 		Enabled       bool               `tfschema:"enabled"`
 		ListOfStrings []string           `tfschema:"list_of_strings"`
-		ListOfNumbers []int              `tfschema:"list_of_numbers"`
+		ListOfNumbers []int64            `tfschema:"list_of_numbers"`
 		ListOfBools   []bool             `tfschema:"list_of_bools"`
 		ListOfFloats  []float64          `tfschema:"list_of_floats"`
 		NestedObject  []NestedType       `tfschema:"nested_object"`
 		MapOfStrings  map[string]string  `tfschema:"map_of_strings"`
-		MapOfNumbers  map[string]int     `tfschema:"map_of_numbers"`
+		MapOfNumbers  map[string]int64   `tfschema:"map_of_numbers"`
 		MapOfBools    map[string]bool    `tfschema:"map_of_bools"`
 		MapOfFloats   map[string]float64 `tfschema:"map_of_floats"`
 		// Sets are handled in a separate test, since the orders can be different
@@ -38,7 +41,7 @@ func TestAccPluginSDKAndDecoder(t *testing.T) {
 		RandomNumber:  42,
 		Enabled:       true,
 		ListOfStrings: []string{"hello", "there"},
-		ListOfNumbers: []int{1, 2, 4},
+		ListOfNumbers: []int64{1, 2, 4},
 		ListOfBools:   []bool{true, false},
 		ListOfFloats:  []float64{-1.234567894321, 2.3456789},
 		NestedObject: []NestedType{
@@ -49,7 +52,7 @@ func TestAccPluginSDKAndDecoder(t *testing.T) {
 		MapOfStrings: map[string]string{
 			"bingo": "bango",
 		},
-		MapOfNumbers: map[string]int{
+		MapOfNumbers: map[string]int64{
 			"lucky": 21,
 		},
 		MapOfBools: map[string]bool{
@@ -60,7 +63,7 @@ func TestAccPluginSDKAndDecoder(t *testing.T) {
 		},
 	}
 
-	//lintignore:AT001
+	// lintignore:AT001
 	resource.ParallelTest(t, resource.TestCase{
 		ProviderFactories: map[string]func() (*schema.Provider, error){
 			"validator": func() (*schema.Provider, error) { //nolint:unparam
@@ -150,7 +153,7 @@ func TestAccPluginSDKAndDecoder(t *testing.T) {
 									},
 								},
 							},
-							Create: func(d *schema.ResourceData, i interface{}) error { //nolint:SA1019
+							Create: func(d *schema.ResourceData, i interface{}) error {
 								d.SetId("some-id")
 								d.Set("hello", "world")
 								d.Set("random_number", 42)
@@ -178,7 +181,7 @@ func TestAccPluginSDKAndDecoder(t *testing.T) {
 								})
 								return nil
 							},
-							Read: func(d *schema.ResourceData, _ interface{}) error { //nolint:SA1019
+							Read: func(d *schema.ResourceData, _ interface{}) error { //nolint:staticcheck
 								wrapper := ResourceMetaData{
 									ResourceData:             d,
 									Logger:                   ConsoleLogger{},
@@ -196,7 +199,7 @@ func TestAccPluginSDKAndDecoder(t *testing.T) {
 
 								return nil
 							},
-							Delete: func(_ *schema.ResourceData, _ interface{}) error { //nolint:SA1019
+							Delete: func(_ *schema.ResourceData, _ interface{}) error { //nolint:staticcheck
 								return nil
 							},
 						},
@@ -260,7 +263,7 @@ func TestAccPluginSDKAndDecoderOptionalComputed(t *testing.T) {
 		}
 	}
 
-	//lintignore:AT001
+	// lintignore:AT001
 	resource.ParallelTest(t, resource.TestCase{
 		ProviderFactories: map[string]func() (*schema.Provider, error){
 			"validator": func() (*schema.Provider, error) { //nolint:unparam
@@ -269,7 +272,7 @@ func TestAccPluginSDKAndDecoderOptionalComputed(t *testing.T) {
 					ResourcesMap: map[string]*schema.Resource{
 						"validator_decoder_specified": {
 							Schema: commonSchema,
-							Create: func(d *schema.ResourceData, i interface{}) error { //nolint:SA1019
+							Create: func(d *schema.ResourceData, i interface{}) error { //nolint:staticcheck
 								d.SetId("some-id")
 								return nil
 							},
@@ -285,7 +288,7 @@ func TestAccPluginSDKAndDecoderOptionalComputed(t *testing.T) {
 
 						"validator_decoder_unspecified": {
 							Schema: commonSchema,
-							Create: func(d *schema.ResourceData, i interface{}) error { //nolint:SA1019
+							Create: func(d *schema.ResourceData, i interface{}) error { //nolint:staticcheck
 								d.SetId("some-id")
 								d.Set("hello", "value-from-create")
 								d.Set("number", 42)
@@ -346,7 +349,7 @@ func TestAccPluginSDKAndDecoderOptionalComputedOverride(t *testing.T) {
 		// TODO: do we need other field types, or is this sufficient?
 	}
 
-	//lintignore:AT001
+	// lintignore:AT001
 	resource.ParallelTest(t, resource.TestCase{
 		ProviderFactories: map[string]func() (*schema.Provider, error){
 			"validator": func() (*schema.Provider, error) { //nolint:unparam
@@ -371,7 +374,7 @@ func TestAccPluginSDKAndDecoderOptionalComputedOverride(t *testing.T) {
 									Computed: true,
 								},
 							},
-							Create: func(d *schema.ResourceData, i interface{}) error { //nolint:SA1019
+							Create: func(d *schema.ResourceData, i interface{}) error { //nolint:staticcheck
 								d.SetId("some-id")
 								d.Set("hello", "value-from-create")
 								d.Set("number", 42)
@@ -445,14 +448,14 @@ func TestAccPluginSDKAndDecoderSets(t *testing.T) {
 
 	type MyType struct {
 		SetOfStrings []string  `tfschema:"set_of_strings"`
-		SetOfNumbers []int     `tfschema:"set_of_numbers"`
+		SetOfNumbers []int64   `tfschema:"set_of_numbers"`
 		SetOfBools   []bool    `tfschema:"set_of_bools"`
 		SetOfFloats  []float64 `tfschema:"set_of_floats"`
 		// we could arguably extend this with nested Sets, but they're tested in the Decode function
 		// so we should be covered via this test alone
 	}
 
-	//lintignore:AT001
+	// lintignore:AT001
 	resource.ParallelTest(t, resource.TestCase{
 		ProviderFactories: map[string]func() (*schema.Provider, error){
 			"validator": func() (*schema.Provider, error) { //nolint:unparam
@@ -490,7 +493,7 @@ func TestAccPluginSDKAndDecoderSets(t *testing.T) {
 									},
 								},
 							},
-							Create: func(d *schema.ResourceData, i interface{}) error { //nolint:SA1019
+							Create: func(d *schema.ResourceData, i interface{}) error { //nolint:staticcheck
 								d.SetId("some-id")
 								d.Set("set_of_strings", []string{
 									"some",
@@ -542,7 +545,7 @@ func TestAccPluginSDKAndDecoderSets(t *testing.T) {
 									}
 								}
 
-								expectedNumbers := []int{
+								expectedNumbers := []int64{
 									1,
 									2,
 								}
@@ -628,10 +631,10 @@ func TestAccPluginSDKAndEncoder(t *testing.T) {
 	}
 	type MyType struct {
 		Hello         string             `tfschema:"hello"`
-		RandomNumber  int                `tfschema:"random_number"`
+		RandomNumber  int64              `tfschema:"random_number"`
 		Enabled       bool               `tfschema:"enabled"`
 		ListOfStrings []string           `tfschema:"list_of_strings"`
-		ListOfNumbers []int              `tfschema:"list_of_numbers"`
+		ListOfNumbers []int64            `tfschema:"list_of_numbers"`
 		ListOfBools   []bool             `tfschema:"list_of_bools"`
 		ListOfFloats  []float64          `tfschema:"list_of_floats"`
 		NestedObject  []NestedType       `tfschema:"nested_object"`
@@ -640,12 +643,12 @@ func TestAccPluginSDKAndEncoder(t *testing.T) {
 		MapOfBools    map[string]bool    `tfschema:"map_of_bools"`
 		MapOfFloats   map[string]float64 `tfschema:"map_of_floats"`
 		SetOfStrings  []string           `tfschema:"set_of_strings"`
-		SetOfNumbers  []int              `tfschema:"set_of_numbers"`
+		SetOfNumbers  []int64            `tfschema:"set_of_numbers"`
 		SetOfBools    []bool             `tfschema:"set_of_bools"`
 		SetOfFloats   []float64          `tfschema:"set_of_floats"`
 	}
 
-	//lintignore:AT001
+	// lintignore:AT001
 	resource.ParallelTest(t, resource.TestCase{
 		ProviderFactories: map[string]func() (*schema.Provider, error){
 			"validator": func() (*schema.Provider, error) { //nolint:unparam
@@ -763,7 +766,7 @@ func TestAccPluginSDKAndEncoder(t *testing.T) {
 									},
 								},
 							},
-							Create: func(d *schema.ResourceData, i interface{}) error { //nolint:SA1019
+							Create: func(d *schema.ResourceData, i interface{}) error { //nolint:staticcheck
 								wrapper := ResourceMetaData{
 									ResourceData:             d,
 									Logger:                   ConsoleLogger{},
@@ -775,7 +778,7 @@ func TestAccPluginSDKAndEncoder(t *testing.T) {
 									RandomNumber:  42,
 									Enabled:       true,
 									ListOfStrings: []string{"hello", "there"},
-									ListOfNumbers: []int{1, 2, 4},
+									ListOfNumbers: []int64{1, 2, 4},
 									ListOfBools:   []bool{true, false},
 									ListOfFloats:  []float64{-1.234567894321, 2.3456789},
 									NestedObject: []NestedType{
@@ -863,7 +866,7 @@ func TestAccPluginSDKReturnsComputedFields(t *testing.T) {
 	os.Setenv("TF_ACC", "1")
 
 	resourceName := "validator_computed.test"
-	//lintignore:AT001
+	// lintignore:AT001
 	resource.ParallelTest(t, resource.TestCase{
 		ProviderFactories: map[string]func() (*schema.Provider, error){
 			"validator": func() (*schema.Provider, error) { //nolint:unparam
@@ -980,7 +983,7 @@ func computedFieldsResource() *schema.Resource {
 				},
 			},
 		},
-		Create: func(d *schema.ResourceData, meta interface{}) error { //nolint:SA1019
+		Create: func(d *schema.ResourceData, meta interface{}) error { //nolint:staticcheck
 			d.SetId("does-not-matter")
 			return readFunc(d, meta)
 		},

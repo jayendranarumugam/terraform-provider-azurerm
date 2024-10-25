@@ -10,6 +10,8 @@ description: |-
 
 Manages a PostgreSQL Database within a PostgreSQL Server
 
+!>**IMPORTANT:** To mitigate the possibility of accidental data loss it is highly recommended that you use the `prevent_destroy` lifecycle argument in your configuration file for this resource. For more information on the `prevent_destroy` lifecycle argument please see the [terraform documentation](https://developer.hashicorp.com/terraform/tutorials/state/resource-lifecycle#prevent-resource-deletion).
+
 ## Example Usage
 
 ```hcl
@@ -42,6 +44,11 @@ resource "azurerm_postgresql_database" "example" {
   server_name         = azurerm_postgresql_server.example.name
   charset             = "UTF8"
   collation           = "English_United States.1252"
+
+  # prevent the possibility of accidental data loss
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 ```
 
@@ -49,8 +56,7 @@ resource "azurerm_postgresql_database" "example" {
 
 The following arguments are supported:
 
-* `name` - (Required) Specifies the name of the PostgreSQL Database, which needs [to be a valid PostgreSQL identifier](https://www.postgresql.org/docs/current/static/sql-syntax-lexical.html#SQL-SYNTAX-IDENTIFIERS). Changing this forces a
-    new resource to be created.
+* `name` - (Required) Specifies the name of the PostgreSQL Database, which needs [to be a valid PostgreSQL identifier](https://www.postgresql.org/docs/current/static/sql-syntax-lexical.html#SQL-SYNTAX-IDENTIFIERS). Changing this forces a new resource to be created.
 
 * `server_name` - (Required) Specifies the name of the PostgreSQL Server. Changing this forces a new resource to be created.
 
@@ -62,7 +68,7 @@ The following arguments are supported:
 
 ## Attributes Reference
 
-The following attributes are exported:
+In addition to the Arguments listed above - the following Attributes are exported:
 
 * `id` - The ID of the PostgreSQL Database.
 
@@ -71,7 +77,6 @@ The following attributes are exported:
 The `timeouts` block allows you to specify [timeouts](https://www.terraform.io/language/resources/syntax#operation-timeouts) for certain actions:
 
 * `create` - (Defaults to 60 minutes) Used when creating the PostgreSQL Database.
-* `update` - (Defaults to 60 minutes) Used when updating the PostgreSQL Database.
 * `read` - (Defaults to 5 minutes) Used when retrieving the PostgreSQL Database.
 * `delete` - (Defaults to 60 minutes) Used when deleting the PostgreSQL Database.
 

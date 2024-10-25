@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package appservice_test
 
 import (
@@ -10,7 +13,7 @@ import (
 
 type ServicePlanDataSource struct{}
 
-func TestAccAppServicePlanDataSource_complete(t *testing.T) {
+func TestAccServicePlanDataSource_complete(t *testing.T) {
 	data := acceptance.BuildTestData(t, "data.azurerm_service_plan", "test")
 	d := ServicePlanDataSource{}
 
@@ -19,7 +22,7 @@ func TestAccAppServicePlanDataSource_complete(t *testing.T) {
 			Config: d.complete(data),
 			Check: acceptance.ComposeTestCheckFunc(
 				check.That(data.ResourceName).Key("location").HasValue(data.Locations.Primary),
-			// TODO - rest of the sane properties
+				// TODO - rest of the sane properties
 			),
 		},
 	})

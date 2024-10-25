@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package network_test
 
 import (
@@ -161,6 +164,7 @@ resource "azurerm_public_ip" "test" {
   location                = azurerm_resource_group.test.location
   resource_group_name     = azurerm_resource_group.test.name
   allocation_method       = "Static"
+  sku                     = "Basic"
   idle_timeout_in_minutes = 30
 
   tags = {
@@ -174,6 +178,7 @@ resource "azurerm_public_ip" "test2" {
   location                = azurerm_resource_group.test.location
   resource_group_name     = azurerm_resource_group.test.name
   allocation_method       = "Static"
+  sku                     = "Basic"
   idle_timeout_in_minutes = 30
 
   tags = {
@@ -211,6 +216,7 @@ resource "azurerm_public_ip" "dynamic" {
   location                = azurerm_resource_group.test.location
   resource_group_name     = azurerm_resource_group.test.name
   allocation_method       = "Dynamic"
+  sku                     = "Basic"
   idle_timeout_in_minutes = 30
 
   tags = {
@@ -224,6 +230,7 @@ resource "azurerm_public_ip" "static" {
   location                = azurerm_resource_group.test.location
   resource_group_name     = azurerm_resource_group.test.name
   allocation_method       = "Static"
+  sku                     = "Basic"
   idle_timeout_in_minutes = 30
 
   tags = {

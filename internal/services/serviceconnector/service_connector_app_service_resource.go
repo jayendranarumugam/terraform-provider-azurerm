@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package serviceconnector
 
 import (
@@ -5,28 +8,32 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/hashicorp/go-azure-helpers/lang/pointer"
 	"github.com/hashicorp/go-azure-helpers/lang/response"
+	"github.com/hashicorp/go-azure-helpers/resourcemanager/commonids"
 	"github.com/hashicorp/go-azure-sdk/resource-manager/servicelinker/2022-05-01/links"
-	"github.com/hashicorp/go-azure-sdk/resource-manager/servicelinker/2022-05-01/servicelinker"
+	"github.com/hashicorp/go-azure-sdk/resource-manager/servicelinker/2024-04-01/servicelinker"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-provider-azurerm/helpers/azure"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/sdk"
-	"github.com/hashicorp/terraform-provider-azurerm/internal/services/storage/parse"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/services/web/validate"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/tf/pluginsdk"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/tf/validation"
 	"github.com/hashicorp/terraform-provider-azurerm/utils"
 )
 
+var _ sdk.ResourceWithUpdate = AppServiceConnectorResource{}
+
 type AppServiceConnectorResource struct{}
 
 type AppServiceConnectorResourceModel struct {
-	Name             string          `tfschema:"name"`
-	AppServiceId     string          `tfschema:"app_service_id"`
-	TargetResourceId string          `tfschema:"target_resource_id"`
-	ClientType       string          `tfschema:"client_type"`
-	AuthInfo         []AuthInfoModel `tfschema:"authentication"`
-	VnetSolution     string          `tfschema:"vnet_solution"`
+	Name             string             `tfschema:"name"`
+	AppServiceId     string             `tfschema:"app_service_id"`
+	TargetResourceId string             `tfschema:"target_resource_id"`
+	ClientType       string             `tfschema:"client_type"`
+	AuthInfo         []AuthInfoModel    `tfschema:"authentication"`
+	VnetSolution     string             `tfschema:"vnet_solution"`
+	SecretStore      []SecretStoreModel `tfschema:"secret_store"`
 }
 
 func (r AppServiceConnectorResource) Arguments() map[string]*schema.Schema {
@@ -69,6 +76,8 @@ func (r AppServiceConnectorResource) Arguments() map[string]*schema.Schema {
 				string(servicelinker.ClientTypeSpringBoot),
 			}, false),
 		},
+
+		"secret_store": secretStoreSchema(),
 
 		"vnet_solution": {
 			Type:     pluginsdk.TypeString,
@@ -116,7 +125,7 @@ func (r AppServiceConnectorResource) Create() sdk.ResourceFunc {
 				return metadata.ResourceRequiresImport(r.ResourceType(), id)
 			}
 
-			authInfo, err := expandServiceConnectorAuthInfo(model.AuthInfo)
+			authInfo, err := expandServiceConnectorAuthInfoForCreate(model.AuthInfo)
 			if err != nil {
 				return fmt.Errorf("expanding `authentication`: %+v", err)
 			}
@@ -125,8 +134,8 @@ func (r AppServiceConnectorResource) Create() sdk.ResourceFunc {
 				AuthInfo: authInfo,
 			}
 
-			if _, err := parse.StorageAccountID(model.TargetResourceId); err == nil {
-				targetResourceId := model.TargetResourceId + "/blobServices/default"
+			if storageAccountId, err := commonids.ParseStorageAccountID(model.TargetResourceId); err == nil {
+				targetResourceId := fmt.Sprintf("%s/blobServices/default", storageAccountId.ID())
 				serviceConnectorProperties.TargetService = servicelinker.AzureResource{
 					Id: &targetResourceId,
 				}
@@ -134,6 +143,11 @@ func (r AppServiceConnectorResource) Create() sdk.ResourceFunc {
 				serviceConnectorProperties.TargetService = servicelinker.AzureResource{
 					Id: &model.TargetResourceId,
 				}
+			}
+
+			if model.SecretStore != nil {
+				secretStore := expandSecretStore(model.SecretStore)
+				serviceConnectorProperties.SecretStore = secretStore
 			}
 
 			if model.ClientType != "" {
@@ -183,6 +197,8 @@ func (r AppServiceConnectorResource) Read() sdk.ResourceFunc {
 				return fmt.Errorf("reading %s: %+v", *id, err)
 			}
 
+			pwd := metadata.ResourceData.Get("authentication.0.secret").(string)
+
 			if model := resp.Model; model != nil {
 				props := model.Properties
 				if props.AuthInfo == nil || props.TargetService == nil {
@@ -193,7 +209,7 @@ func (r AppServiceConnectorResource) Read() sdk.ResourceFunc {
 					Name:             id.LinkerName,
 					AppServiceId:     id.ResourceUri,
 					TargetResourceId: flattenTargetService(props.TargetService),
-					AuthInfo:         flattenServiceConnectorAuthInfo(props.AuthInfo),
+					AuthInfo:         flattenServiceConnectorAuthInfo(props.AuthInfo, pwd),
 				}
 
 				if props.ClientType != nil {
@@ -202,6 +218,10 @@ func (r AppServiceConnectorResource) Read() sdk.ResourceFunc {
 
 				if props.VNetSolution != nil && props.VNetSolution.Type != nil {
 					state.VnetSolution = string(*props.VNetSolution.Type)
+				}
+
+				if props.SecretStore != nil {
+					state.SecretStore = flattenSecretStore(*props.SecretStore)
 				}
 
 				return metadata.Encode(&state)
@@ -223,11 +243,10 @@ func (r AppServiceConnectorResource) Delete() sdk.ResourceFunc {
 
 			metadata.Logger.Infof("deleting %s", *id)
 
-			if resp, err := client.LinkerDelete(ctx, *id); err != nil {
-				if !response.WasNotFound(resp.HttpResponse) {
-					return fmt.Errorf("deleting %s: %+v", *id, err)
-				}
+			if err := client.LinkerDeleteThenPoll(ctx, *id); err != nil {
+				return fmt.Errorf("deleting %s: %+v", *id, err)
 			}
+
 			return nil
 		},
 	}
@@ -264,17 +283,27 @@ func (r AppServiceConnectorResource) Update() sdk.ResourceFunc {
 				linkerProps.VNetSolution = &vnetSolution
 			}
 
+			if d.HasChange("secret_store") {
+				linkerProps.SecretStore = pointer.To(links.SecretStore{KeyVaultId: expandSecretStore(state.SecretStore).KeyVaultId})
+			}
+
 			if d.HasChange("authentication") {
-				linkerProps.AuthInfo = state.AuthInfo
+				authInfo, err := expandServiceConnectorAuthInfoForUpdate(state.AuthInfo)
+				if err != nil {
+					return fmt.Errorf("expanding `authentication`: %+v", err)
+				}
+
+				linkerProps.AuthInfo = authInfo
 			}
 
 			props := links.LinkerPatch{
 				Properties: &linkerProps,
 			}
 
-			if _, err := client.LinkerUpdate(ctx, *id, props); err != nil {
+			if err := client.LinkerUpdateThenPoll(ctx, *id, props); err != nil {
 				return fmt.Errorf("updating %s: %+v", *id, err)
 			}
+
 			return nil
 		},
 	}

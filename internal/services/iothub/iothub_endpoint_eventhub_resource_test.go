@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package iothub_test
 
 import (
@@ -180,6 +183,10 @@ resource "azurerm_iothub" "test" {
   tags = {
     purpose = "testing"
   }
+
+  lifecycle {
+    ignore_changes = [endpoint]
+  }
 }
 
 resource "azurerm_iothub_endpoint_eventhub" "test" {
@@ -260,6 +267,10 @@ resource "azurerm_iothub" "test" {
 
   tags = {
     purpose = "testing"
+  }
+
+  lifecycle {
+    ignore_changes = [endpoint]
   }
 }
 
@@ -416,6 +427,10 @@ resource "azurerm_iothub" "test" {
     identity_ids = [
       azurerm_user_assigned_identity.test.id,
     ]
+  }
+
+  lifecycle {
+    ignore_changes = [endpoint]
   }
 
   depends_on = [

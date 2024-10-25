@@ -41,17 +41,23 @@ resource "azurerm_storage_container" "example" {
 
 The following arguments are supported:
 
-* `name` - (Required) The name of the Container which should be created within the Storage Account.
+* `name` - (Required) The name of the Container which should be created within the Storage Account. Changing this forces a new resource to be created.
 
-* `storage_account_name` - (Required) The name of the Storage Account where the Container should be created.
+* `storage_account_name` - (Required) The name of the Storage Account where the Container should be created. Changing this forces a new resource to be created.
 
 * `container_access_type` - (Optional) The Access Level configured for this Container. Possible values are `blob`, `container` or `private`. Defaults to `private`.
+
+~> **Note** When updating `container_access_type` for an existing storage container resource, Shared Key authentication will always be used, as AzureAD authentication is not supported.
+
+* `default_encryption_scope` - (Optional) The default encryption scope to use for blobs uploaded to this container. Changing this forces a new resource to be created.
+
+* `encryption_scope_override_enabled` - (Optional) Whether to allow blobs to override the default encryption scope for this container. Can only be set when specifying `default_encryption_scope`. Defaults to `true`. Changing this forces a new resource to be created.
 
 * `metadata` - (Optional) A mapping of MetaData for this Container. All metadata keys should be lowercase.
 
 ## Attributes Reference
 
-The following attributes are exported in addition to the arguments listed above:
+In addition to the Arguments listed above - the following Attributes are exported:
 
 * `id` - The ID of the Storage Container.
 

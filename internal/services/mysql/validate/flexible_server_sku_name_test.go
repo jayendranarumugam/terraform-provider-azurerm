@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package validate
 
 import "testing"
@@ -72,6 +75,16 @@ func TestFlexibleServerSkuName(t *testing.T) {
 			name:  "GP_Standard_D64ds_v4",
 			input: "GP_Standard_D64ds_v4",
 			valid: true,
+		},
+		{
+			name:  "B_Standard_D64ds_v4",
+			input: "B_Standard_D64ds_v4",
+			valid: false,
+		},
+		{
+			name:  "MO_Standard_B2s",
+			input: "MO_Standard_B2s",
+			valid: false,
 		},
 	}
 	for _, tt := range tests {

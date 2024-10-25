@@ -51,7 +51,7 @@ The following arguments are supported:
 
 * `value` - (Optional) The value of this API Management Named Value.
 
-* `value_from_key_vault` - (Optional) A `value_from_key_vault` block as defined below.
+* `value_from_key_vault` - (Optional) A `value_from_key_vault` block as defined below. If specified, `secret` must also be set to `true`.
 
 * `secret` - (Optional) Specifies whether the API Management Named Value is secret. Valid values are `true` or `false`. The default value is `false`.
 
@@ -69,7 +69,7 @@ A `value_from_key_vault` block supports the following:
 
 ## Attributes Reference
 
-In addition to all arguments above, the following attributes are exported:
+In addition to the Arguments listed above - the following Attributes are exported:
 
 * `id` - The ID of the API Management Named Value.
 

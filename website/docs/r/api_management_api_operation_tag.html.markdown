@@ -30,6 +30,12 @@ resource "azurerm_api_management_api_operation" "example" {
   url_template        = "/users/{id}/delete"
   description         = "This can only be done by the logged in user."
 
+  template_parameter {
+    name     = "id"
+    type     = "number"
+    required = true
+  }
+
   response {
     status_code = 200
   }
@@ -52,7 +58,7 @@ The following arguments are supported:
 
 ---
 
-* `display_name` - (Optional) The display name of the API Management API Operation Tag.
+* `display_name` - (Required) The display name of the API Management API Operation Tag.
 
 ## Attributes Reference
 

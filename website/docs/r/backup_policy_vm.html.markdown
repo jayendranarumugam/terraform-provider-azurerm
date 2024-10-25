@@ -79,6 +79,10 @@ The following arguments are supported:
 
 * `instant_restore_retention_days` - (Optional) Specifies the instant restore retention range in days. Possible values are between `1` and `5` when `policy_type` is `V1`, and `1` to `30` when `policy_type` is `V2`.
 
+~> **NOTE:** `instant_restore_retention_days` **must** be set to `5` if the backup frequency is set to `Weekly`.
+
+* `instant_restore_resource_group` - (Optional) Specifies the instant restore resource group name as documented in the `instant_restore_resource_group` block below.
+
 * `retention_daily` - (Optional) Configures the policy daily retention as documented in the `retention_daily` block below. Required when backup frequency is `Daily`.
 
 * `retention_weekly` - (Optional) Configures the policy weekly retention as documented in the `retention_weekly` block below. Required when backup frequency is `Weekly`.
@@ -86,6 +90,8 @@ The following arguments are supported:
 * `retention_monthly` - (Optional) Configures the policy monthly retention as documented in the `retention_monthly` block below.
 
 * `retention_yearly` - (Optional) Configures the policy yearly retention as documented in the `retention_yearly` block below.
+
+* `tiering_policy` - (Optional) A `tiering_policy` block as defined below.
 
 ---
 
@@ -95,13 +101,20 @@ The `backup` block supports:
 
 * `time` - (Required) The time of day to perform the backup in 24hour format.
 
-* `hour_interval` - (Optional) Interval in hour at which backup is triggered. Possible values are `4`, `6`, `8` and `12`. This is used  when `frequency` is `Hourly`.
+* `hour_interval` - (Optional) Interval in hour at which backup is triggered. Possible values are `4`, `6`, `8` and `12`. This is used when `frequency` is `Hourly`.
 
 * `hour_duration` - (Optional) Duration of the backup window in hours. Possible values are between `4` and `24` This is used when `frequency` is `Hourly`.
 
 ~> **NOTE:** `hour_duration` must be multiplier of `hour_interval`
 
 * `weekdays` - (Optional) The days of the week to perform backups on. Must be one of `Sunday`, `Monday`, `Tuesday`, `Wednesday`, `Thursday`, `Friday` or `Saturday`. This is used when `frequency` is `Weekly`.
+
+---
+The `instant_restore_resource_group` block supports:
+
+* `prefix` - (Required) The prefix for the `instant_restore_resource_group` name.
+
+* `suffix` - (Optional) The suffix for the `instant_restore_resource_group` name.
 
 ---
 
@@ -125,9 +138,15 @@ The `retention_monthly` block supports:
 
 * `count` - (Required) The number of monthly backups to keep. Must be between `1` and `9999`
 
-* `weekdays` - (Required) The weekday backups to retain . Must be one of `Sunday`, `Monday`, `Tuesday`, `Wednesday`, `Thursday`, `Friday` or `Saturday`.
+* `weekdays` - (Optional) The weekday backups to retain . Must be one of `Sunday`, `Monday`, `Tuesday`, `Wednesday`, `Thursday`, `Friday` or `Saturday`.
 
-* `weeks` - (Required) The weeks of the month to retain backups of. Must be one of `First`, `Second`, `Third`, `Fourth`, `Last`.
+* `weeks` - (Optional) The weeks of the month to retain backups of. Must be one of `First`, `Second`, `Third`, `Fourth`, `Last`.
+
+* `days` - (Optional) The days of the month to retain backups of. Must be between `1` and `31`.
+
+* `include_last_days` - (Optional) Including the last day of the month, default to `false`.
+
+-> **NOTE:**: Either `weekdays` and `weeks` or `days` and `include_last_days` must be specified.
 
 ---
 
@@ -135,17 +154,37 @@ The `retention_yearly` block supports:
 
 * `count` - (Required) The number of yearly backups to keep. Must be between `1` and `9999`
 
-* `weekdays` - (Required) The weekday backups to retain . Must be one of `Sunday`, `Monday`, `Tuesday`, `Wednesday`, `Thursday`, `Friday` or `Saturday`.
-
-* `weeks` - (Required) The weeks of the month to retain backups of. Must be one of `First`, `Second`, `Third`, `Fourth`, `Last`.
-
 * `months` - (Required) The months of the year to retain backups of. Must be one of `January`, `February`, `March`, `April`, `May`, `June`, `July`, `August`, `September`, `October`, `November` and `December`.
+
+* `weekdays` - (Optional) The weekday backups to retain . Must be one of `Sunday`, `Monday`, `Tuesday`, `Wednesday`, `Thursday`, `Friday` or `Saturday`.
+
+* `weeks` - (Optional) The weeks of the month to retain backups of. Must be one of `First`, `Second`, `Third`, `Fourth`, `Last`.
+
+* `days` - (Optional) The days of the month to retain backups of. Must be between `1` and `31`.
+
+* `include_last_days` - (Optional) Including the last day of the month, default to `false`.
+
+-> **NOTE:**: Either `weekdays` and `weeks` or `days` and `include_last_days` must be specified.
 
 ---
 
+A `tiering_policy` block supports the following:
+
+* `archived_restore_point` - (Required) An `archived_restore_point` block as defined below.
+
+---
+
+An `archived_restore_point` block supports the following:
+
+* `mode` - (Required) The tiering mode to control automatic tiering of recovery points. Possible values are `TierAfter` and `TierRecommended`.
+
+* `duration` - (Optional) The number of days/weeks/months/years to retain backups in current tier before tiering.
+
+* `duration_type` - (Optional) The retention duration type. Possible values are `Days`, `Weeks`, `Months` and `Years`.
+
 ## Attributes Reference
 
-The following attributes are exported:
+In addition to the Arguments listed above - the following Attributes are exported:
 
 * `id` - The ID of the VM Backup Policy.
 

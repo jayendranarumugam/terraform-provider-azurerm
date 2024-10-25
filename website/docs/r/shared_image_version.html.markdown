@@ -45,7 +45,7 @@ resource "azurerm_shared_image_version" "example" {
 
 The following arguments are supported:
 
-* `name` - (Required) The version number for this Image Version, such as `1.0.0`. Changing this forces a new resource to be created.
+* `name` - (Required) The version number for this Image Version, such as `1.0.0`. Changing this forces a new resource to be created. 
 
 * `gallery_name` - (Required) The name of the Shared Image Gallery in which the Shared Image exists. Changing this forces a new resource to be created.
 
@@ -77,7 +77,9 @@ The following arguments are supported:
 
 -> **NOTE:** You must specify exact one of `blob_uri`, `managed_image_id` and `os_disk_snapshot_id`.
 
-* `replication_mode` - (Optional)  Mode to be used for replication. Possible values are `Full` and `Shallow`. Defaults to `Full`. Changing this forces a new resource to be created.
+* `deletion_of_replicated_locations_enabled` - (Optional) Specifies whether this Shared Image Version can be deleted from the Azure Regions this is replicated to. Defaults to `false`. Changing this forces a new resource to be created.
+
+* `replication_mode` - (Optional) Mode to be used for replication. Possible values are `Full` and `Shallow`. Defaults to `Full`. Changing this forces a new resource to be created.
 
 * `storage_account_id` - (Optional) The ID of the Storage Account where the Blob exists. Changing this forces a new resource to be created.
 
@@ -95,11 +97,13 @@ The `target_region` block supports the following:
 
 * `disk_encryption_set_id` - (Optional) The ID of the Disk Encryption Set to encrypt the Image Version in the target region. Changing this forces a new resource to be created.
 
+* `exclude_from_latest_enabled` - (Optional) Specifies whether this Shared Image Version should be excluded when querying for the `latest` version. Defaults to `false`.
+
 * `storage_account_type` - (Optional) The storage account type for the image version. Possible values are `Standard_LRS`, `Premium_LRS` and `Standard_ZRS`. Defaults to `Standard_LRS`. You can store all of your image version replicas in Zone Redundant Storage by specifying `Standard_ZRS`.
 
 ## Attributes Reference
 
-The following attributes are exported:
+In addition to the Arguments listed above - the following Attributes are exported:
 
 * `id` - The ID of the Shared Image Version.
 

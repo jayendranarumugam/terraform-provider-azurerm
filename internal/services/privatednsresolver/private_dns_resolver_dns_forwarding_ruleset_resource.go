@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package privatednsresolver
 
 import (
@@ -96,10 +99,7 @@ func (r PrivateDNSResolverDnsForwardingRulesetResource) Create() sdk.ResourceFun
 				Tags:       &model.Tags,
 			}
 
-			dnsResolverOutboundEndpointsValue, err := expandDnsResolverOutboundEndpoints(model.DnsResolverOutboundEndpoints)
-			if err != nil {
-				return err
-			}
+			dnsResolverOutboundEndpointsValue := expandDnsResolverOutboundEndpoints(model.DnsResolverOutboundEndpoints)
 
 			if dnsResolverOutboundEndpointsValue != nil {
 				properties.Properties.DnsResolverOutboundEndpoints = *dnsResolverOutboundEndpointsValue
@@ -142,17 +142,12 @@ func (r PrivateDNSResolverDnsForwardingRulesetResource) Update() sdk.ResourceFun
 			}
 
 			if metadata.ResourceData.HasChange("dns_resolver_outbound_endpoints") {
-				dnsResolverOutboundEndpointsValue, err := expandDnsResolverOutboundEndpoints(model.DnsResolverOutboundEndpoints)
-				if err != nil {
-					return err
-				}
+				dnsResolverOutboundEndpointsValue := expandDnsResolverOutboundEndpoints(model.DnsResolverOutboundEndpoints)
 
 				if dnsResolverOutboundEndpointsValue != nil {
 					properties.Properties.DnsResolverOutboundEndpoints = *dnsResolverOutboundEndpointsValue
 				}
 			}
-
-			properties.SystemData = nil
 
 			if metadata.ResourceData.HasChange("tags") {
 				properties.Tags = &model.Tags
@@ -199,12 +194,8 @@ func (r PrivateDNSResolverDnsForwardingRulesetResource) Read() sdk.ResourceFunc 
 			}
 
 			properties := &model.Properties
-			dnsResolverOutboundEndpointsValue, err := flattenDnsResolverOutboundEndpoints(&properties.DnsResolverOutboundEndpoints)
-			if err != nil {
-				return err
-			}
 
-			state.DnsResolverOutboundEndpoints = dnsResolverOutboundEndpointsValue
+			state.DnsResolverOutboundEndpoints = flattenDnsResolverOutboundEndpoints(&properties.DnsResolverOutboundEndpoints)
 
 			if model.Tags != nil {
 				state.Tags = *model.Tags
@@ -235,7 +226,7 @@ func (r PrivateDNSResolverDnsForwardingRulesetResource) Delete() sdk.ResourceFun
 	}
 }
 
-func expandDnsResolverOutboundEndpoints(inputList []string) (*[]dnsforwardingrulesets.SubResource, error) {
+func expandDnsResolverOutboundEndpoints(inputList []string) *[]dnsforwardingrulesets.SubResource {
 	var outputList []dnsforwardingrulesets.SubResource
 	for _, v := range inputList {
 		output := dnsforwardingrulesets.SubResource{
@@ -244,13 +235,13 @@ func expandDnsResolverOutboundEndpoints(inputList []string) (*[]dnsforwardingrul
 		outputList = append(outputList, output)
 	}
 
-	return &outputList, nil
+	return &outputList
 }
 
-func flattenDnsResolverOutboundEndpoints(inputList *[]dnsforwardingrulesets.SubResource) ([]string, error) {
+func flattenDnsResolverOutboundEndpoints(inputList *[]dnsforwardingrulesets.SubResource) []string {
 	var outputList []string
 	if inputList == nil {
-		return outputList, nil
+		return outputList
 	}
 
 	for _, input := range *inputList {
@@ -258,5 +249,5 @@ func flattenDnsResolverOutboundEndpoints(inputList *[]dnsforwardingrulesets.SubR
 		outputList = append(outputList, output)
 	}
 
-	return outputList, nil
+	return outputList
 }

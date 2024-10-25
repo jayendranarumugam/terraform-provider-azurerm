@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package network_test
 
 import (
@@ -5,12 +8,12 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/hashicorp/go-azure-helpers/lang/pointer"
+	"github.com/hashicorp/go-azure-sdk/resource-manager/network/2023-11-01/virtualwans"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/acceptance"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/acceptance/check"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/clients"
-	"github.com/hashicorp/terraform-provider-azurerm/internal/services/network/parse"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/tf/pluginsdk"
-	"github.com/hashicorp/terraform-provider-azurerm/utils"
 )
 
 type VirtualHubResource struct{}
@@ -26,6 +29,24 @@ func TestAccVirtualHub_basic(t *testing.T) {
 				check.That(data.ResourceName).ExistsInAzure(r),
 				check.That(data.ResourceName).Key("virtual_router_asn").Exists(),
 				check.That(data.ResourceName).Key("virtual_router_ips.#").Exists(),
+			),
+		},
+		data.ImportStep(),
+	})
+}
+
+func TestAccVirtualHub_hubRoutingPreference(t *testing.T) {
+	data := acceptance.BuildTestData(t, "azurerm_virtual_hub", "test")
+	r := VirtualHubResource{}
+
+	data.ResourceTest(t, r, []acceptance.TestStep{
+		{
+			Config: r.hubRoutingPreference(data),
+			Check: acceptance.ComposeTestCheckFunc(
+				check.That(data.ResourceName).ExistsInAzure(r),
+				check.That(data.ResourceName).Key("virtual_router_asn").Exists(),
+				check.That(data.ResourceName).Key("virtual_router_ips.#").Exists(),
+				check.That(data.ResourceName).Key("hub_routing_preference").HasValue("ASPath"),
 			),
 		},
 		data.ImportStep(),
@@ -87,18 +108,33 @@ func TestAccVirtualHub_tags(t *testing.T) {
 	})
 }
 
+func TestAccVirtualHub_auto_scale_min_capacity(t *testing.T) {
+	data := acceptance.BuildTestData(t, "azurerm_virtual_hub", "test")
+	r := VirtualHubResource{}
+
+	data.ResourceTest(t, r, []acceptance.TestStep{
+		{
+			Config: r.autoScaleSettings(data),
+			Check: acceptance.ComposeTestCheckFunc(
+				check.That(data.ResourceName).ExistsInAzure(r),
+			),
+		},
+		data.ImportStep(),
+	})
+}
+
 func (t VirtualHubResource) Exists(ctx context.Context, clients *clients.Client, state *pluginsdk.InstanceState) (*bool, error) {
-	id, err := parse.VirtualHubID(state.ID)
+	id, err := virtualwans.ParseVirtualHubID(state.ID)
 	if err != nil {
 		return nil, err
 	}
 
-	resp, err := clients.Network.VirtualHubClient.Get(ctx, id.ResourceGroup, id.Name)
+	resp, err := clients.Network.VirtualWANs.VirtualHubsGet(ctx, *id)
 	if err != nil {
-		return nil, fmt.Errorf("reading Virtual Hub (%s): %+v", id, err)
+		return nil, fmt.Errorf("retrieving %s: %+v", id, err)
 	}
 
-	return utils.Bool(resp.ID != nil), nil
+	return pointer.To(resp.Model != nil), nil
 }
 
 func (r VirtualHubResource) basic(data acceptance.TestData) string {
@@ -202,4 +238,36 @@ resource "azurerm_virtual_wan" "test" {
   location            = azurerm_resource_group.test.location
 }
 `, data.RandomInteger, data.Locations.Primary, data.RandomInteger)
+}
+
+func (r VirtualHubResource) hubRoutingPreference(data acceptance.TestData) string {
+	return fmt.Sprintf(`
+%s
+
+resource "azurerm_virtual_hub" "test" {
+  name                = "acctestVHUB-%d"
+  resource_group_name = azurerm_resource_group.test.name
+  location            = azurerm_resource_group.test.location
+  virtual_wan_id      = azurerm_virtual_wan.test.id
+  address_prefix      = "10.0.1.0/24"
+
+  hub_routing_preference = "ASPath"
+}
+`, r.template(data), data.RandomInteger)
+}
+
+func (r VirtualHubResource) autoScaleSettings(data acceptance.TestData) string {
+	return fmt.Sprintf(`
+%s
+
+resource "azurerm_virtual_hub" "test" {
+  name                = "acctestVHUB-%d"
+  resource_group_name = azurerm_resource_group.test.name
+  location            = azurerm_resource_group.test.location
+  virtual_wan_id      = azurerm_virtual_wan.test.id
+  address_prefix      = "10.0.1.0/24"
+
+  virtual_router_auto_scale_min_capacity = 3
+}
+`, r.template(data), data.RandomInteger)
 }

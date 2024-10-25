@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package nginx_test
 
 import (
@@ -5,13 +8,13 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/hashicorp/go-azure-sdk/resource-manager/nginx/2022-08-01/nginxconfiguration"
+	"github.com/hashicorp/go-azure-helpers/lang/pointer"
+	"github.com/hashicorp/go-azure-sdk/resource-manager/nginx/2024-06-01-preview/nginxconfiguration"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/acceptance"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/acceptance/check"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/clients"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/services/nginx"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/tf/pluginsdk"
-	"github.com/hashicorp/terraform-provider-azurerm/utils"
 )
 
 type ConfigurationResource struct{}
@@ -23,9 +26,9 @@ func (a ConfigurationResource) Exists(ctx context.Context, client *clients.Clien
 	}
 	resp, err := client.Nginx.NginxConfiguration.ConfigurationsGet(ctx, *id)
 	if err != nil {
-		return nil, fmt.Errorf("retrieving Configuration %s: %+v", id, err)
+		return nil, fmt.Errorf("retrieving %s: %+v", id, err)
 	}
-	return utils.Bool(resp.Model != nil), nil
+	return pointer.To(resp.Model != nil), nil
 }
 
 func TestAccConfiguration_basic(t *testing.T) {
@@ -38,6 +41,21 @@ func TestAccConfiguration_basic(t *testing.T) {
 				check.That(data.ResourceName).ExistsInAzure(r),
 			),
 		},
+		data.ImportStep("protected_file"),
+	})
+}
+
+func TestAccConfiguration_withCertificate(t *testing.T) {
+	data := acceptance.BuildTestData(t, nginx.ConfigurationResource{}.ResourceType(), "test")
+	r := ConfigurationResource{}
+	data.ResourceTest(t, r, []acceptance.TestStep{
+		{
+			Config: r.withCertificate(data),
+			Check: acceptance.ComposeTestCheckFunc(
+				check.That(data.ResourceName).ExistsInAzure(r),
+			),
+		},
+		data.ImportStep(),
 	})
 }
 
@@ -51,14 +69,14 @@ func TestAccConfiguration_update(t *testing.T) {
 				check.That(data.ResourceName).ExistsInAzure(r),
 			),
 		},
-		data.ImportStep(),
+		data.ImportStep("protected_file"),
 		{
 			Config: r.update(data),
 			Check: acceptance.ComposeTestCheckFunc(
 				check.That(data.ResourceName).ExistsInAzure(r),
 			),
 		},
-		data.ImportStep(),
+		data.ImportStep("protected_file"),
 	})
 }
 
@@ -78,8 +96,6 @@ func TestAccConfiguration_requiresImport(t *testing.T) {
 
 func (a ConfigurationResource) basic(data acceptance.TestData) string {
 	return fmt.Sprintf(`
-
-
 %s
 
 resource "azurerm_nginx_configuration" "test" {
@@ -90,14 +106,59 @@ resource "azurerm_nginx_configuration" "test" {
     content      = local.config_content
     virtual_path = "/etc/nginx/nginx.conf"
   }
+
+  protected_file {
+    content      = local.protected_content
+    virtual_path = "/opt/.htpasswd"
+  }
 }
 `, a.template(data))
 }
 
+func (a ConfigurationResource) withCertificate(data acceptance.TestData) string {
+	return fmt.Sprintf(`
+%s
+
+locals {
+  config_content = base64encode(<<-EOT
+http {
+    server {
+      listen 443 ssl;
+      ssl_certificate /etc/nginx/ssl/test.crt;
+      ssl_certificate_key /etc/nginx/ssl/test.key;
+      location / {
+        return 200 "Hello World";
+      }
+    }
+}
+EOT
+  )
+}
+
+resource "azurerm_nginx_certificate" "test" {
+  name                     = "acctest"
+  nginx_deployment_id      = azurerm_nginx_deployment.test.id
+  key_virtual_path         = "/etc/nginx/ssl/test.key"
+  certificate_virtual_path = "/etc/nginx/ssl/test.crt"
+  key_vault_secret_id      = azurerm_key_vault_certificate.test.secret_id
+}
+
+resource "azurerm_nginx_configuration" "test" {
+  nginx_deployment_id = azurerm_nginx_deployment.test.id
+  root_file           = "/etc/nginx/nginx.conf"
+
+  config_file {
+    content      = local.config_content
+    virtual_path = "/etc/nginx/nginx.conf"
+  }
+
+  depends_on = [azurerm_nginx_certificate.test]
+}
+`, CertificateResource{}.template(data))
+}
+
 func (a ConfigurationResource) requiresImport(data acceptance.TestData) string {
 	return fmt.Sprintf(`
-
-
 %s
 
 resource "azurerm_nginx_configuration" "import" {
@@ -113,8 +174,6 @@ resource "azurerm_nginx_configuration" "import" {
 
 func (a ConfigurationResource) update(data acceptance.TestData) string {
 	return fmt.Sprintf(`
-
-
 %s
 
 resource "azurerm_nginx_configuration" "test" {
@@ -129,6 +188,11 @@ resource "azurerm_nginx_configuration" "test" {
   config_file {
     content      = local.sub_config_content
     virtual_path = "/etc/nginx/site/b.conf"
+  }
+
+  protected_file {
+    content      = local.protected_content
+    virtual_path = "/opt/.htpasswd"
   }
 }
 `, a.template(data))
@@ -151,6 +215,8 @@ http {
     server {
         listen 80;
         location / {
+            auth_basic "Protected Area";
+            auth_basic_user_file /opt/.htpasswd;
             default_type text/html;
             return 200 '<!doctype html><html lang="en"><head></head><body>
                 <div>this one will be updated</div>
@@ -160,6 +226,11 @@ http {
         include site/*.conf;
     }
 }
+EOT
+  )
+
+  protected_content = base64encode(<<-EOT
+user:$apr1$VeUA5kt.$IjjRk//8miRxDsZvD4daF1
 EOT
   )
 
@@ -214,12 +285,11 @@ resource "azurerm_subnet" "test" {
 resource "azurerm_nginx_deployment" "test" {
   name                = "acctest-%[1]d"
   resource_group_name = azurerm_resource_group.test.name
-  sku                 = "publicpreview_Monthly_gmz7xq9ge3py"
+  sku                 = "standardv2_Monthly"
+  capacity            = 10
   location            = azurerm_resource_group.test.location
 
-  //message: "Conflict managed resource group name: tenant: -91a, subscription xxx, resource group example."
-  managed_resource_group   = "accmr%[1]d"
-  diagnose_support_enabled = true
+  diagnose_support_enabled = false
 
   frontend_public {
     ip_address = [azurerm_public_ip.test.id]
@@ -228,6 +298,7 @@ resource "azurerm_nginx_deployment" "test" {
   network_interface {
     subnet_id = azurerm_subnet.test.id
   }
+
   tags = {
     foo = "bar"
   }

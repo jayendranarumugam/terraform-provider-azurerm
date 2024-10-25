@@ -62,35 +62,47 @@ The following arguments are supported:
 
 * `name` - (Required) Specifies the name of the Bastion Host. Changing this forces a new resource to be created.
 
-* `resource_group_name` - (Required) The name of the resource group in which to create the Bastion Host.
+* `resource_group_name` - (Required) The name of the resource group in which to create the Bastion Host. Changing this forces a new resource to be created.
 
-* `location` - (Required) Specifies the supported Azure location where the resource exists. Changing this forces a new resource to be created.  Review [Azure Bastion Host FAQ](https://docs.microsoft.com/azure/bastion/bastion-faq) for supported locations.
+* `location` - (Required) Specifies the supported Azure location where the resource exists. Changing this forces a new resource to be created. Review [Azure Bastion Host FAQ](https://docs.microsoft.com/azure/bastion/bastion-faq) for supported locations.
 
 * `copy_paste_enabled` - (Optional) Is Copy/Paste feature enabled for the Bastion Host. Defaults to `true`.
 
 * `file_copy_enabled` - (Optional) Is File Copy feature enabled for the Bastion Host. Defaults to `false`.
 
-~> **Note:** `file_copy_enabled` is only supported when `sku` is `Standard`.
+~> **Note:** `file_copy_enabled` is only supported when `sku` is `Standard` or `Premium`.
 
-* `sku` - (Optional) The SKU of the Bastion Host. Accepted values are `Basic` and `Standard`. Defaults to `Basic`.
+* `sku` - (Optional) The SKU of the Bastion Host. Accepted values are `Developer`, `Basic`, `Standard` and `Premium`. Defaults to `Basic`.
 
-* `ip_configuration` - (Required) A `ip_configuration` block as defined below.
+~> **Note** Downgrading the SKU will force a new resource to be created.
+
+* `ip_configuration` - (Optional) A `ip_configuration` block as defined below. Changing this forces a new resource to be created.
 
 * `ip_connect_enabled` - (Optional) Is IP Connect feature enabled for the Bastion Host. Defaults to `false`.
 
-~> **Note:** `ip_connect_enabled` is only supported when `sku` is `Standard`.
+~> **Note:** `ip_connect_enabled` is only supported when `sku` is `Standard` or `Premium`.
+
+* `kerberos_enabled` - (Optional) Is Kerberos authentication feature enabled for the Bastion Host. Defaults to `false`.
+
+~> **Note:** `kerberos_enabled` is only supported when `sku` is `Standard` or `Premium`.
 
 * `scale_units` - (Optional) The number of scale units with which to provision the Bastion Host. Possible values are between `2` and `50`. Defaults to `2`.
 
-~> **Note:** `scale_units` only can be changed when `sku` is `Standard`. `scale_units` is always `2` when `sku` is `Basic`.
+~> **Note:** `scale_units` only can be changed when `sku` is `Standard` or `Premium`. `scale_units` is always `2` when `sku` is `Basic`.
 
 * `shareable_link_enabled` - (Optional) Is Shareable Link feature enabled for the Bastion Host. Defaults to `false`.
 
-~> **Note:** `shareable_link_enabled` is only supported when `sku` is `Standard`.
+~> **Note:** `shareable_link_enabled` is only supported when `sku` is `Standard` or `Premium`.
 
 * `tunneling_enabled` - (Optional) Is Tunneling feature enabled for the Bastion Host. Defaults to `false`.
 
-~> **Note:** `tunneling_enabled` is only supported when `sku` is `Standard`.
+~> **Note:** `tunneling_enabled` is only supported when `sku` is `Standard` or `Premium`.
+
+* `session_recording_enabled` - (Optional) Is Session Recording feature enabled for the Bastion Host. Defaults to `false`.
+
+~> **Note:** `session_recording_enabled` is only supported when `sku` is `Premium`.
+
+* `virtual_network_id` - (Optional) The ID of the Virtual Network for the Developer Bastion Host. Changing this forces a new resource to be created.
 
 * `tags` - (Optional) A mapping of tags to assign to the resource.
 
@@ -98,17 +110,17 @@ The following arguments are supported:
 
 A `ip_configuration` block supports the following:
 
-* `name` - (Required) The name of the IP configuration.
+* `name` - (Required) The name of the IP configuration. Changing this forces a new resource to be created.
 
-* `subnet_id` - (Required) Reference to a subnet in which this Bastion Host has been created.
+* `subnet_id` - (Required) Reference to a subnet in which this Bastion Host has been created. Changing this forces a new resource to be created.
 
 ~> **Note:** The Subnet used for the Bastion Host must have the name `AzureBastionSubnet` and the subnet mask must be at least a `/26`.
 
-* `public_ip_address_id` (Required)  Reference to a Public IP Address to associate with this Bastion Host.
+* `public_ip_address_id` - (Required) Reference to a Public IP Address to associate with this Bastion Host. Changing this forces a new resource to be created.
 
 ## Attributes Reference
 
-The following attributes are exported:
+In addition to the Arguments listed above - the following Attributes are exported:
 
 * `id` - The ID of the Bastion Host.
 

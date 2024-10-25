@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package securitycenter_test
 
 import (
@@ -16,24 +19,13 @@ import (
 
 type SecurityCenterWorkspaceResource struct{}
 
-func TestAccSecurityCenterWorkspace(t *testing.T) {
-	// there is only one workspace with the same name could exist, so run the tests in sequence.
-	acceptance.RunTestsInSequence(t, map[string]map[string]func(t *testing.T){
-		"setting": {
-			"basic":          testAccSecurityCenterWorkspace_basic,
-			"update":         testAccSecurityCenterWorkspace_update,
-			"requiresImport": testAccSecurityCenterWorkspace_requiresImport,
-		},
-	})
-}
-
 func testAccSecurityCenterWorkspace_basic(t *testing.T) {
 	data := acceptance.BuildTestData(t, "azurerm_security_center_workspace", "test")
 	r := SecurityCenterWorkspaceResource{}
 
 	scope := fmt.Sprintf("/subscriptions/%s", os.Getenv("ARM_SUBSCRIPTION_ID"))
 
-	data.ResourceSequentialTestSkipCheckDestroyed(t, []acceptance.TestStep{
+	data.ResourceSequentialTest(t, r, []acceptance.TestStep{
 		{
 			Config: r.basicCfg(data, scope),
 			Check: acceptance.ComposeTestCheckFunc(
@@ -42,10 +34,6 @@ func testAccSecurityCenterWorkspace_basic(t *testing.T) {
 			),
 		},
 		data.ImportStep(),
-		{
-			// reset pricing to free
-			Config: SecurityCenterSubscriptionPricingResource{}.tier("Free", "VirtualMachines"),
-		},
 	})
 }
 
@@ -54,7 +42,7 @@ func testAccSecurityCenterWorkspace_update(t *testing.T) {
 	r := SecurityCenterWorkspaceResource{}
 	scope := fmt.Sprintf("/subscriptions/%s", os.Getenv("ARM_SUBSCRIPTION_ID"))
 
-	data.ResourceSequentialTestSkipCheckDestroyed(t, []acceptance.TestStep{
+	data.ResourceSequentialTest(t, r, []acceptance.TestStep{
 		{
 			Config: r.basicCfg(data, scope),
 			Check: acceptance.ComposeTestCheckFunc(
@@ -70,10 +58,6 @@ func testAccSecurityCenterWorkspace_update(t *testing.T) {
 			),
 		},
 		data.ImportStep(),
-		{
-			// reset pricing to free
-			Config: SecurityCenterSubscriptionPricingResource{}.tier("Free", "VirtualMachines"),
-		},
 	})
 }
 
@@ -82,7 +66,7 @@ func testAccSecurityCenterWorkspace_requiresImport(t *testing.T) {
 	r := SecurityCenterWorkspaceResource{}
 	scope := fmt.Sprintf("/subscriptions/%s", os.Getenv("ARM_SUBSCRIPTION_ID"))
 
-	data.ResourceSequentialTestSkipCheckDestroyed(t, []acceptance.TestStep{
+	data.ResourceSequentialTest(t, r, []acceptance.TestStep{
 		{
 			Config: r.basicCfg(data, scope),
 			Check: acceptance.ComposeTestCheckFunc(
@@ -93,10 +77,6 @@ func testAccSecurityCenterWorkspace_requiresImport(t *testing.T) {
 		{
 			Config:      r.requiresImportCfg(data, scope),
 			ExpectError: acceptance.RequiresImportError("azurerm_security_center_workspace"),
-		},
-		{
-			// reset pricing to free
-			Config: SecurityCenterSubscriptionPricingResource{}.tier("Free", "VirtualMachines"),
 		},
 	})
 }

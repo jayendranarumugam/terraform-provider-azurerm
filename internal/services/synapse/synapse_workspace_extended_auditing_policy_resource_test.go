@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package synapse_test
 
 import (
@@ -186,7 +189,7 @@ provider "azurerm" {
 }
 
 resource "azurerm_resource_group" "test" {
-  name     = "acctestsw%[1]d"
+  name     = "acctestRG-synapse-%[1]d"
   location = "%[2]s"
 }
 
@@ -377,9 +380,8 @@ resource "azurerm_monitor_diagnostic_setting" "test" {
   target_resource_id         = azurerm_synapse_workspace.test.id
   log_analytics_workspace_id = azurerm_log_analytics_workspace.test.id
 
-  log {
+  enabled_log {
     category = "SQLSecurityAuditEvents"
-    enabled  = true
 
     retention_policy {
       enabled = false
@@ -394,9 +396,9 @@ resource "azurerm_monitor_diagnostic_setting" "test" {
     }
   }
 
-  // log, metric will return all disabled categories
+  // metric will return all disabled categories
   lifecycle {
-    ignore_changes = [log, metric]
+    ignore_changes = [metric]
   }
 }
 
@@ -416,9 +418,8 @@ resource "azurerm_monitor_diagnostic_setting" "test" {
   target_resource_id         = azurerm_synapse_workspace.test.id
   log_analytics_workspace_id = azurerm_log_analytics_workspace.test.id
 
-  log {
+  enabled_log {
     category = "SQLSecurityAuditEvents"
-    enabled  = true
 
     retention_policy {
       enabled = false
@@ -433,9 +434,9 @@ resource "azurerm_monitor_diagnostic_setting" "test" {
     }
   }
 
-  // log, metric will return all disabled categories
+  // metric will return all disabled categories
   lifecycle {
-    ignore_changes = [log, metric]
+    ignore_changes = [metric]
   }
 }
 
@@ -459,9 +460,8 @@ resource "azurerm_monitor_diagnostic_setting" "test" {
   eventhub_name                  = azurerm_eventhub.test.name
 
 
-  log {
+  enabled_log {
     category = "SQLSecurityAuditEvents"
-    enabled  = true
 
     retention_policy {
       enabled = false
@@ -476,9 +476,9 @@ resource "azurerm_monitor_diagnostic_setting" "test" {
     }
   }
 
-  // log, metric will return all disabled categories
+  // metric will return all disabled categories
   lifecycle {
-    ignore_changes = [log, metric]
+    ignore_changes = [metric]
   }
 
 }
@@ -501,9 +501,8 @@ resource "azurerm_monitor_diagnostic_setting" "test" {
   eventhub_name                  = azurerm_eventhub.test.name
 
 
-  log {
+  enabled_log {
     category = "SQLSecurityAuditEvents"
-    enabled  = true
 
     retention_policy {
       enabled = false
@@ -518,9 +517,9 @@ resource "azurerm_monitor_diagnostic_setting" "test" {
     }
   }
 
-  // log, metric will return all disabled categories
+  // metric will return all disabled categories
   lifecycle {
-    ignore_changes = [log, metric]
+    ignore_changes = [metric]
   }
 
 }

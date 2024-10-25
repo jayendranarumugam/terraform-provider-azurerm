@@ -70,7 +70,7 @@ The following arguments are supported:
 
 * `container_network_interface` - (Required) A `container_network_interface` block as documented below.
 
-* `tags` - (Optional) A mapping of tags to assign to the resource.
+* `tags` - (Optional) A mapping of tags assigned to the resource.
 
 ---
 
@@ -90,7 +90,7 @@ A `ip_configuration` block supports the following:
 
 ## Attributes Reference
 
-The following attributes are exported:
+In addition to the Arguments listed above - the following Attributes are exported:
 
 * `id` - The ID of the Network Profile.
 

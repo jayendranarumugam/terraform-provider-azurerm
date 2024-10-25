@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package validate
 
 import (
@@ -44,7 +47,7 @@ func EntityName(v interface{}, k string) (warnings []string, errors []error) {
 func ClusterName(v interface{}, k string) (warnings []string, errors []error) {
 	name := v.(string)
 
-	if !regexp.MustCompile(`^[a-z][a-z0-9]+$`).MatchString(name) {
+	if !regexp.MustCompile(`^[a-z][a-z0-9\-]+$`).MatchString(name) {
 		errors = append(errors, fmt.Errorf("%q must begin with a letter and may only contain alphanumeric characters: %q", k, name))
 	}
 
@@ -62,8 +65,8 @@ func DatabaseName(v interface{}, k string) (warnings []string, errors []error) {
 		errors = append(errors, fmt.Errorf("%q must not consist of whitespaces only", k))
 	}
 
-	if !regexp.MustCompile(`^[a-zA-Z0-9\s.-]+$`).MatchString(name) {
-		errors = append(errors, fmt.Errorf("%q may only contain alphanumeric characters, whitespaces, dashes and dots: %q", k, name))
+	if !regexp.MustCompile(`^[a-zA-Z0-9\s._-]+$`).MatchString(name) {
+		errors = append(errors, fmt.Errorf("%q may only contain alphanumeric characters, whitespaces, dashes, underscores and dots: %q", k, name))
 	}
 
 	if len(name) > 260 {

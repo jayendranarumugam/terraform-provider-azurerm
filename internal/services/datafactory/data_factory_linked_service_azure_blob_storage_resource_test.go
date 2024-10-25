@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package datafactory_test
 
 import (
@@ -127,6 +130,21 @@ func TestAccDataFactoryLinkedServiceAzureBlobStorage_update(t *testing.T) {
 			),
 		},
 		data.ImportStep("connection_string"),
+	})
+}
+
+func TestAccDataFactoryLinkedServiceAzureBlobStorage_connectionStringInsecure(t *testing.T) {
+	data := acceptance.BuildTestData(t, "azurerm_data_factory_linked_service_azure_blob_storage", "test")
+	r := LinkedServiceAzureBlobStorageResource{}
+
+	data.ResourceTest(t, r, []acceptance.TestStep{
+		{
+			Config: r.connectionStringInsecure(data),
+			Check: acceptance.ComposeTestCheckFunc(
+				check.That(data.ResourceName).ExistsInAzure(r),
+			),
+		},
+		data.ImportStep("connection_string_insecure"),
 	})
 }
 
@@ -268,13 +286,13 @@ data "azurerm_client_config" "current" {
 }
 
 resource "azurerm_storage_account" "test" {
-  name                      = "accsa%[1]d"
-  location                  = azurerm_resource_group.test.location
-  resource_group_name       = azurerm_resource_group.test.name
-  account_tier              = "Standard"
-  account_kind              = "StorageV2"
-  account_replication_type  = "LRS"
-  enable_https_traffic_only = true
+  name                       = "accsa%[1]d"
+  location                   = azurerm_resource_group.test.location
+  resource_group_name        = azurerm_resource_group.test.name
+  account_tier               = "Standard"
+  account_kind               = "StorageV2"
+  account_replication_type   = "LRS"
+  https_traffic_only_enabled = true
 }
 
 resource "azurerm_role_assignment" "test" {
@@ -422,4 +440,29 @@ resource "azurerm_data_factory_linked_service_azure_blob_storage" "test" {
   }
 }
 `, data.RandomInteger, data.Locations.Primary, data.RandomInteger, data.RandomInteger, tenantID)
+}
+
+func (LinkedServiceAzureBlobStorageResource) connectionStringInsecure(data acceptance.TestData) string {
+	return fmt.Sprintf(`
+provider "azurerm" {
+  features {}
+}
+
+resource "azurerm_resource_group" "test" {
+  name     = "acctestRG-df-%d"
+  location = "%s"
+}
+
+resource "azurerm_data_factory" "test" {
+  name                = "acctestdf%d"
+  location            = azurerm_resource_group.test.location
+  resource_group_name = azurerm_resource_group.test.name
+}
+
+resource "azurerm_data_factory_linked_service_azure_blob_storage" "test" {
+  name                       = "acctestlsblob%d"
+  data_factory_id            = azurerm_data_factory.test.id
+  connection_string_insecure = "DefaultEndpointsProtocol=https;AccountName=foo;AccountKey=bar"
+}
+`, data.RandomInteger, data.Locations.Primary, data.RandomInteger, data.RandomInteger)
 }

@@ -1,28 +1,36 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package bot_test
 
 import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
-	"github.com/Azure/azure-sdk-for-go/services/preview/botservice/mgmt/2021-05-01-preview/botservice"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/acceptance"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/acceptance/check"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/clients"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/services/bot/parse"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/tf/pluginsdk"
 	"github.com/hashicorp/terraform-provider-azurerm/utils"
+	"github.com/tombuildsstuff/kermit/sdk/botservice/2021-05-01-preview/botservice"
 )
 
 type BotChannelDirectLineSpeechResource struct{}
 
-func testAccBotChannelDirectLineSpeech_basic(t *testing.T) {
+func TestAccBotChannelDirectLineSpeech_basic(t *testing.T) {
 	data := acceptance.BuildTestData(t, "azurerm_bot_channel_direct_line_speech", "test")
 	r := BotChannelDirectLineSpeechResource{}
 
-	data.ResourceSequentialTest(t, r, []acceptance.TestStep{
+	data.ResourceTest(t, r, []acceptance.TestStep{
 		{
-			Config: r.basic(data),
+			Config: r.cognitiveAccount(data),
+		},
+		{
+			PreConfig: func() { time.Sleep(5 * time.Minute) },
+			Config:    r.basic(data),
 			Check: acceptance.ComposeTestCheckFunc(
 				check.That(data.ResourceName).ExistsInAzure(r),
 			),
@@ -31,13 +39,17 @@ func testAccBotChannelDirectLineSpeech_basic(t *testing.T) {
 	})
 }
 
-func testAccBotChannelDirectLineSpeech_requiresImport(t *testing.T) {
+func TestAccBotChannelDirectLineSpeech_requiresImport(t *testing.T) {
 	data := acceptance.BuildTestData(t, "azurerm_bot_channel_direct_line_speech", "test")
 	r := BotChannelDirectLineSpeechResource{}
 
-	data.ResourceSequentialTest(t, r, []acceptance.TestStep{
+	data.ResourceTest(t, r, []acceptance.TestStep{
 		{
-			Config: r.basic(data),
+			Config: r.cognitiveAccount(data),
+		},
+		{
+			PreConfig: func() { time.Sleep(5 * time.Minute) },
+			Config:    r.basic(data),
 			Check: acceptance.ComposeTestCheckFunc(
 				check.That(data.ResourceName).ExistsInAzure(r),
 			),
@@ -46,13 +58,17 @@ func testAccBotChannelDirectLineSpeech_requiresImport(t *testing.T) {
 	})
 }
 
-func testAccBotChannelDirectLineSpeech_complete(t *testing.T) {
+func TestAccBotChannelDirectLineSpeech_complete(t *testing.T) {
 	data := acceptance.BuildTestData(t, "azurerm_bot_channel_direct_line_speech", "test")
 	r := BotChannelDirectLineSpeechResource{}
 
-	data.ResourceSequentialTest(t, r, []acceptance.TestStep{
+	data.ResourceTest(t, r, []acceptance.TestStep{
 		{
-			Config: r.complete(data),
+			Config: r.cognitiveAccount(data),
+		},
+		{
+			PreConfig: func() { time.Sleep(5 * time.Minute) },
+			Config:    r.complete(data),
 			Check: acceptance.ComposeTestCheckFunc(
 				check.That(data.ResourceName).ExistsInAzure(r),
 			),
@@ -61,20 +77,28 @@ func testAccBotChannelDirectLineSpeech_complete(t *testing.T) {
 	})
 }
 
-func testAccBotChannelDirectLineSpeech_update(t *testing.T) {
+func TestAccBotChannelDirectLineSpeech_update(t *testing.T) {
 	data := acceptance.BuildTestData(t, "azurerm_bot_channel_direct_line_speech", "test")
 	r := BotChannelDirectLineSpeechResource{}
 
-	data.ResourceSequentialTest(t, r, []acceptance.TestStep{
+	data.ResourceTest(t, r, []acceptance.TestStep{
 		{
-			Config: r.complete(data),
+			Config: r.cognitiveAccount(data),
+		},
+		{
+			PreConfig: func() { time.Sleep(5 * time.Minute) },
+			Config:    r.complete(data),
 			Check: acceptance.ComposeTestCheckFunc(
 				check.That(data.ResourceName).ExistsInAzure(r),
 			),
 		},
 		data.ImportStep("cognitive_service_location", "cognitive_service_access_key"), // not returned from API
 		{
-			Config: r.update(data),
+			Config: r.cognitiveAccountForUpdate(data),
+		},
+		{
+			PreConfig: func() { time.Sleep(5 * time.Minute) },
+			Config:    r.update(data),
 			Check: acceptance.ComposeTestCheckFunc(
 				check.That(data.ResourceName).ExistsInAzure(r),
 			),
@@ -97,7 +121,7 @@ func (r BotChannelDirectLineSpeechResource) Exists(ctx context.Context, clients 
 	return utils.Bool(resp.Properties != nil), nil
 }
 
-func (BotChannelDirectLineSpeechResource) basic(data acceptance.TestData) string {
+func (BotChannelDirectLineSpeechResource) cognitiveAccount(data acceptance.TestData) string {
 	return fmt.Sprintf(`
 %s
 
@@ -108,6 +132,12 @@ resource "azurerm_cognitive_account" "test" {
   kind                = "SpeechServices"
   sku_name            = "S0"
 }
+`, BotChannelsRegistrationResource{}.basicConfig(data), data.RandomInteger)
+}
+
+func (BotChannelDirectLineSpeechResource) basic(data acceptance.TestData) string {
+	return fmt.Sprintf(`
+%s
 
 resource "azurerm_bot_channel_direct_line_speech" "test" {
   bot_name                     = azurerm_bot_channels_registration.test.name
@@ -116,7 +146,7 @@ resource "azurerm_bot_channel_direct_line_speech" "test" {
   cognitive_service_location   = azurerm_cognitive_account.test.location
   cognitive_service_access_key = azurerm_cognitive_account.test.primary_access_key
 }
-`, BotChannelsRegistrationResource{}.basicConfig(data), data.RandomInteger)
+`, BotChannelDirectLineSpeechResource{}.cognitiveAccount(data))
 }
 
 func (r BotChannelDirectLineSpeechResource) requiresImport(data acceptance.TestData) string {
@@ -137,37 +167,22 @@ func (BotChannelDirectLineSpeechResource) complete(data acceptance.TestData) str
 	return fmt.Sprintf(`
 %s
 
-resource "azurerm_cognitive_account" "test" {
-  name                = "acctest-cogacct-%d"
-  location            = azurerm_resource_group.test.location
-  resource_group_name = azurerm_resource_group.test.name
-  kind                = "SpeechServices"
-  sku_name            = "S0"
-}
-
 resource "azurerm_bot_channel_direct_line_speech" "test" {
   bot_name                     = azurerm_bot_channels_registration.test.name
   location                     = azurerm_bot_channels_registration.test.location
   resource_group_name          = azurerm_resource_group.test.name
+  cognitive_account_id         = azurerm_cognitive_account.test.id
   cognitive_service_location   = azurerm_cognitive_account.test.location
   cognitive_service_access_key = azurerm_cognitive_account.test.primary_access_key
   custom_speech_model_id       = "a9316355-7b04-4468-9f6e-114419e6c9cc"
   custom_voice_deployment_id   = "58dd86d4-31e3-4cf7-9b17-ee1d3dd77695"
 }
-`, BotChannelsRegistrationResource{}.basicConfig(data), data.RandomInteger)
+`, BotChannelDirectLineSpeechResource{}.cognitiveAccount(data))
 }
 
-func (BotChannelDirectLineSpeechResource) update(data acceptance.TestData) string {
+func (BotChannelDirectLineSpeechResource) cognitiveAccountForUpdate(data acceptance.TestData) string {
 	return fmt.Sprintf(`
 %s
-
-resource "azurerm_cognitive_account" "test" {
-  name                = "acctest-cogacct-%d"
-  location            = azurerm_resource_group.test.location
-  resource_group_name = azurerm_resource_group.test.name
-  kind                = "SpeechServices"
-  sku_name            = "S0"
-}
 
 resource "azurerm_resource_group" "test2" {
   name     = "acctestRG-dls-%d"
@@ -181,15 +196,22 @@ resource "azurerm_cognitive_account" "test2" {
   kind                = "SpeechServices"
   sku_name            = "S0"
 }
+`, BotChannelDirectLineSpeechResource{}.cognitiveAccount(data), data.RandomInteger, data.Locations.Secondary, data.RandomInteger)
+}
+
+func (BotChannelDirectLineSpeechResource) update(data acceptance.TestData) string {
+	return fmt.Sprintf(`
+%s
 
 resource "azurerm_bot_channel_direct_line_speech" "test" {
   bot_name                     = azurerm_bot_channels_registration.test.name
   location                     = azurerm_bot_channels_registration.test.location
   resource_group_name          = azurerm_resource_group.test.name
+  cognitive_account_id         = azurerm_cognitive_account.test2.id
   cognitive_service_location   = azurerm_cognitive_account.test2.location
   cognitive_service_access_key = azurerm_cognitive_account.test2.primary_access_key
   custom_speech_model_id       = "cf7a4202-9be3-4195-9619-5a747260626d"
   custom_voice_deployment_id   = "b815f623-c217-4327-b765-f6e0fd7dceef"
 }
-`, BotChannelsRegistrationResource{}.basicConfig(data), data.RandomInteger, data.RandomInteger, data.Locations.Secondary, data.RandomInteger)
+`, BotChannelDirectLineSpeechResource{}.cognitiveAccountForUpdate(data))
 }

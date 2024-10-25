@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package iothub_test
 
 import (
@@ -285,7 +288,6 @@ resource "azurerm_iothub_device_update_instance" "test" {
   name                     = "acc-dui-%[2]s"
   device_update_account_id = azurerm_iothub_device_update_account.test.id
   iothub_id                = azurerm_iothub.test.id
-
 
   diagnostic_storage_account {
     connection_string = azurerm_storage_account.test2.primary_connection_string

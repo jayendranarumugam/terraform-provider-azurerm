@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package iothub
 
 import (
@@ -225,7 +228,7 @@ func resourceIotHubDPSSharedAccessPolicyRead(d *pluginsdk.ResourceData, meta int
 		d.Set("primary_key", model.PrimaryKey)
 		d.Set("secondary_key", model.SecondaryKey)
 
-		if iothubDpsModel := iothubDps.Model; model != nil {
+		if iothubDpsModel := iothubDps.Model; iothubDpsModel != nil {
 			primaryConnectionString := ""
 			secondaryConnectionString := ""
 			properties := iothubDpsModel.Properties

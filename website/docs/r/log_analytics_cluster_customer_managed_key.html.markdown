@@ -50,6 +50,7 @@ resource "azurerm_key_vault" "example" {
     key_permissions = [
       "Create",
       "Get",
+      "GetRotationPolicy",
     ]
 
     secret_permissions = [
@@ -62,8 +63,8 @@ resource "azurerm_key_vault" "example" {
   }
 
   access_policy {
-    tenant_id = azurerm_log_analytics_cluster.example.identity.0.tenant_id
-    object_id = azurerm_log_analytics_cluster.example.identity.0.principal_id
+    tenant_id = azurerm_log_analytics_cluster.example.identity[0].tenant_id
+    object_id = azurerm_log_analytics_cluster.example.identity[0].principal_id
 
     key_permissions = [
       "Get",
@@ -124,5 +125,5 @@ The `timeouts` block allows you to specify [timeouts](https://www.terraform.io/l
 Log Analytics Cluster Customer Managed Keys can be imported using the `resource id`, e.g.
 
 ```shell
-terraform import azurerm_log_analytics_cluster_customer_managed_key.example /subscriptions/00000000-0000-0000-0000-000000000000/resourcegroups/group1/providers/Microsoft.OperationalInsights/clusters/cluster1
+terraform import azurerm_log_analytics_cluster_customer_managed_key.example /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group1/providers/Microsoft.OperationalInsights/clusters/cluster1
 ```

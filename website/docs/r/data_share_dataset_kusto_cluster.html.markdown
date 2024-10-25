@@ -51,7 +51,7 @@ resource "azurerm_kusto_cluster" "example" {
 resource "azurerm_role_assignment" "example" {
   scope                = azurerm_kusto_cluster.example.id
   role_definition_name = "Contributor"
-  principal_id         = azurerm_data_share_account.example.identity.0.principal_id
+  principal_id         = azurerm_data_share_account.example.identity[0].principal_id
 }
 
 resource "azurerm_data_share_dataset_kusto_cluster" "example" {
@@ -73,8 +73,6 @@ The following arguments are supported:
 * `share_id` - (Required) The resource ID of the Data Share where this Data Share Kusto Cluster Dataset should be created. Changing this forces a new Data Share Kusto Cluster Dataset to be created.
 
 * `kusto_cluster_id` - (Required) The resource ID of the Kusto Cluster to be shared with the receiver. Changing this forces a new Data Share Kusto Cluster Dataset to be created.
-
-* `public_network_access_enabled` - (Optional) Whether public network access is allowed for the container registry. Defaults to `true`.
 
 ## Attributes Reference
 

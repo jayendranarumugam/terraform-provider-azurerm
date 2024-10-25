@@ -1,20 +1,23 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package netapp
 
 import (
-	"context"
 	"fmt"
 	"log"
-	"strconv"
 	"strings"
 	"time"
 
+	"github.com/hashicorp/go-azure-helpers/lang/pointer"
 	"github.com/hashicorp/go-azure-helpers/lang/response"
+	"github.com/hashicorp/go-azure-helpers/resourcemanager/commonids"
 	"github.com/hashicorp/go-azure-helpers/resourcemanager/commonschema"
 	"github.com/hashicorp/go-azure-helpers/resourcemanager/location"
 	"github.com/hashicorp/go-azure-helpers/resourcemanager/tags"
-	"github.com/hashicorp/go-azure-sdk/resource-manager/netapp/2021-10-01/snapshots"
-	"github.com/hashicorp/go-azure-sdk/resource-manager/netapp/2021-10-01/volumes"
-	"github.com/hashicorp/go-azure-sdk/resource-manager/netapp/2021-10-01/volumesreplication"
+	"github.com/hashicorp/go-azure-sdk/resource-manager/netapp/2023-05-01/snapshots"
+	"github.com/hashicorp/go-azure-sdk/resource-manager/netapp/2023-05-01/volumes"
+	"github.com/hashicorp/go-azure-sdk/resource-manager/netapp/2023-05-01/volumesreplication"
 	"github.com/hashicorp/terraform-provider-azurerm/helpers/azure"
 	"github.com/hashicorp/terraform-provider-azurerm/helpers/tf"
 	"github.com/hashicorp/terraform-provider-azurerm/helpers/validate"
@@ -27,7 +30,7 @@ import (
 )
 
 func resourceNetAppVolume() *pluginsdk.Resource {
-	return &pluginsdk.Resource{
+	resource := &pluginsdk.Resource{
 		Create: resourceNetAppVolumeCreate,
 		Read:   resourceNetAppVolumeRead,
 		Update: resourceNetAppVolumeUpdate,
@@ -45,6 +48,8 @@ func resourceNetAppVolume() *pluginsdk.Resource {
 		}),
 
 		Schema: map[string]*pluginsdk.Schema{
+			"resource_group_name": commonschema.ResourceGroupName(),
+
 			"name": {
 				Type:         pluginsdk.TypeString,
 				Required:     true,
@@ -52,9 +57,9 @@ func resourceNetAppVolume() *pluginsdk.Resource {
 				ValidateFunc: netAppValidate.VolumeName,
 			},
 
-			"resource_group_name": commonschema.ResourceGroupName(),
-
 			"location": commonschema.Location(),
+
+			"zone": commonschema.ZoneSingleOptionalForceNew(),
 
 			"account_name": {
 				Type:         pluginsdk.TypeString,
@@ -92,13 +97,12 @@ func resourceNetAppVolume() *pluginsdk.Resource {
 				Type:         pluginsdk.TypeString,
 				Required:     true,
 				ForceNew:     true,
-				ValidateFunc: azure.ValidateResourceID,
+				ValidateFunc: commonids.ValidateSubnetID,
 			},
 
 			"create_from_snapshot_resource_id": {
 				Type:         pluginsdk.TypeString,
 				Optional:     true,
-				Computed:     true,
 				ForceNew:     true,
 				ValidateFunc: snapshots.ValidateSnapshotID,
 			},
@@ -106,8 +110,7 @@ func resourceNetAppVolume() *pluginsdk.Resource {
 			"network_features": {
 				Type:     pluginsdk.TypeString,
 				Optional: true,
-				Computed: true,
-				ForceNew: true,
+				Default:  string(volumes.NetworkFeaturesBasic),
 				ValidateFunc: validation.StringInSlice([]string{
 					string(volumes.NetworkFeaturesBasic),
 					string(volumes.NetworkFeaturesStandard),
@@ -130,15 +133,34 @@ func resourceNetAppVolume() *pluginsdk.Resource {
 				},
 			},
 
+			"kerberos_enabled": {
+				// Due to large infrastructure requirements, there is not a reliable way to test Kerberos volumes in a shared environment at this time
+				Type:        pluginsdk.TypeBool,
+				Optional:    true,
+				ForceNew:    true,
+				Description: "Enable to allow Kerberos secured volumes. Requires appropriate export rules as well as the parent `azurerm_netapp_account` having a defined AD connection.",
+			},
+
+			"smb_continuous_availability_enabled": {
+				Type:        pluginsdk.TypeBool,
+				Optional:    true,
+				Description: "Continuous availability option should be used only for SQL and FSLogix workloads. Using it for any other SMB workloads is not supported.",
+				ForceNew:    true,
+			},
+
+			"smb3_protocol_encryption_enabled": {
+				Type:        pluginsdk.TypeBool,
+				Optional:    true,
+				Description: "SMB3 encryption option should be used only for SMB/DualProtocol volumes. Using it for any other workloads is not supported.",
+				ForceNew:    true,
+			},
+
 			"security_style": {
-				Type:     pluginsdk.TypeString,
-				Optional: true,
-				ForceNew: true,
-				Computed: true,
-				ValidateFunc: validation.StringInSlice([]string{
-					"Unix", // Using hardcoded values instead of SDK enum since no matter what case is passed,
-					"Ntfs", // ANF changes casing to Pascal case in the backend. Please refer to https://github.com/Azure/azure-sdk-for-go/issues/14684
-				}, false),
+				Type:         pluginsdk.TypeString,
+				Optional:     true,
+				ForceNew:     true,
+				Computed:     true,
+				ValidateFunc: validation.StringInSlice(volumes.PossibleValuesForSecurityStyle(), false),
 			},
 
 			"storage_quota_in_gb": {
@@ -148,9 +170,10 @@ func resourceNetAppVolume() *pluginsdk.Resource {
 			},
 
 			"throughput_in_mibps": {
-				Type:     pluginsdk.TypeFloat,
-				Optional: true,
-				Computed: true,
+				Type:         pluginsdk.TypeFloat,
+				Optional:     true,
+				Computed:     true,
+				ValidateFunc: validation.FloatAtLeast(1.0),
 			},
 
 			"export_policy_rule": {
@@ -177,7 +200,6 @@ func resourceNetAppVolume() *pluginsdk.Resource {
 						"protocols_enabled": {
 							Type:     pluginsdk.TypeList,
 							Optional: true,
-							Computed: true,
 							MaxItems: 1,
 							MinItems: 1,
 							Elem: &pluginsdk.Schema{
@@ -201,6 +223,31 @@ func resourceNetAppVolume() *pluginsdk.Resource {
 						},
 
 						"root_access_enabled": {
+							Type:     pluginsdk.TypeBool,
+							Optional: true,
+						},
+
+						"kerberos_5_read_only_enabled": {
+							Type:     pluginsdk.TypeBool,
+							Optional: true,
+						},
+						"kerberos_5_read_write_enabled": {
+							Type:     pluginsdk.TypeBool,
+							Optional: true,
+						},
+						"kerberos_5i_read_only_enabled": {
+							Type:     pluginsdk.TypeBool,
+							Optional: true,
+						},
+						"kerberos_5i_read_write_enabled": {
+							Type:     pluginsdk.TypeBool,
+							Optional: true,
+						},
+						"kerberos_5p_read_only_enabled": {
+							Type:     pluginsdk.TypeBool,
+							Optional: true,
+						},
+						"kerberos_5p_read_write_enabled": {
 							Type:     pluginsdk.TypeBool,
 							Optional: true,
 						},
@@ -275,8 +322,48 @@ func resourceNetAppVolume() *pluginsdk.Resource {
 					},
 				},
 			},
+
+			"azure_vmware_data_store_enabled": {
+				Type:     pluginsdk.TypeBool,
+				ForceNew: true,
+				Optional: true,
+				Default:  false,
+			},
+
+			"encryption_key_source": {
+				Type:         pluginsdk.TypeString,
+				Optional:     true,
+				ForceNew:     true,
+				Computed:     true,
+				ValidateFunc: validation.StringInSlice(volumes.PossibleValuesForEncryptionKeySource(), false),
+			},
+
+			"key_vault_private_endpoint_id": {
+				Type:         pluginsdk.TypeString,
+				Optional:     true,
+				ForceNew:     true,
+				Computed:     true,
+				ValidateFunc: azure.ValidateResourceID,
+				RequiredWith: []string{"encryption_key_source"},
+			},
+
+			"smb_non_browsable_enabled": {
+				Type:        pluginsdk.TypeBool,
+				Optional:    true,
+				Default:     false,
+				Description: "Enable non browsable share setting for SMB/Dual Protocol volume. When enabled, it restricts windows clients to browse the share",
+			},
+
+			"smb_access_based_enumeration_enabled": {
+				Type:        pluginsdk.TypeBool,
+				Optional:    true,
+				Default:     false,
+				Description: "Enable access based enumeration setting for SMB/Dual Protocol volume. When enabled, users who do not have permission to access a shared folder or file underneath it, do not see that shared resource displayed in their environment.",
+			},
 		},
 	}
+
+	return resource
 }
 
 func resourceNetAppVolumeCreate(d *pluginsdk.ResourceData, meta interface{}) error {
@@ -299,16 +386,31 @@ func resourceNetAppVolumeCreate(d *pluginsdk.ResourceData, meta interface{}) err
 	}
 
 	location := azure.NormalizeLocation(d.Get("location").(string))
+
+	zones := &[]string{}
+	if v, ok := d.GetOk("zone"); ok {
+		zones = &[]string{
+			v.(string),
+		}
+	}
+
 	volumePath := d.Get("volume_path").(string)
 	serviceLevel := volumes.ServiceLevel(d.Get("service_level").(string))
 	subnetID := d.Get("subnet_id").(string)
+	kerberosEnabled := d.Get("kerberos_enabled").(bool)
+	smbContiuouslyAvailable := d.Get("smb_continuous_availability_enabled").(bool)
+	smbEncryption := d.Get("smb3_protocol_encryption_enabled").(bool)
+	networkFeatures := volumes.NetworkFeatures(d.Get("network_features").(string))
 
-	var networkFeatures volumes.NetworkFeatures
-	networkFeaturesString := d.Get("network_features").(string)
-	if networkFeaturesString == "" {
-		networkFeatures = volumes.NetworkFeaturesBasic
+	smbNonBrowsable := volumes.SmbNonBrowsableDisabled
+	if d.Get("smb_non_browsable_enabled").(bool) {
+		smbNonBrowsable = volumes.SmbNonBrowsableEnabled
 	}
-	networkFeatures = volumes.NetworkFeatures(networkFeaturesString)
+
+	smbAccessBasedEnumeration := volumes.SmbAccessBasedEnumerationDisabled
+	if d.Get("smb_access_based_enumeration_enabled").(bool) {
+		smbAccessBasedEnumeration = volumes.SmbAccessBasedEnumerationEnabled
+	}
 
 	protocols := d.Get("protocols").(*pluginsdk.Set).List()
 	if len(protocols) == 0 {
@@ -374,7 +476,7 @@ func resourceNetAppVolumeCreate(d *pluginsdk.ResourceData, meta interface{}) err
 			snapshotID = *model.Id
 		}
 
-		sourceVolumeId := volumes.NewVolumeID(parsedSnapshotResourceID.SubscriptionId, parsedSnapshotResourceID.ResourceGroupName, parsedSnapshotResourceID.AccountName, parsedSnapshotResourceID.PoolName, parsedSnapshotResourceID.VolumeName)
+		sourceVolumeId := volumes.NewVolumeID(parsedSnapshotResourceID.SubscriptionId, parsedSnapshotResourceID.ResourceGroupName, parsedSnapshotResourceID.NetAppAccountName, parsedSnapshotResourceID.CapacityPoolName, parsedSnapshotResourceID.VolumeName)
 		// Validate if properties that cannot be changed matches (protocols, subnet_id, location, resource group, account_name, pool_name, service_level)
 		sourceVolume, err := client.Get(ctx, sourceVolumeId)
 		if err != nil {
@@ -401,10 +503,10 @@ func resourceNetAppVolumeCreate(d *pluginsdk.ResourceData, meta interface{}) err
 			if !strings.EqualFold(sourceVolumeId.ResourceGroupName, id.ResourceGroupName) {
 				propertyMismatch = append(propertyMismatch, "resource_group_name")
 			}
-			if !strings.EqualFold(sourceVolumeId.AccountName, id.AccountName) {
+			if !strings.EqualFold(sourceVolumeId.NetAppAccountName, id.NetAppAccountName) {
 				propertyMismatch = append(propertyMismatch, "account_name")
 			}
-			if !strings.EqualFold(sourceVolumeId.PoolName, id.PoolName) {
+			if !strings.EqualFold(sourceVolumeId.CapacityPoolName, id.CapacityPoolName) {
 				propertyMismatch = append(propertyMismatch, "pool_name")
 			}
 			if len(propertyMismatch) > 0 {
@@ -413,30 +515,55 @@ func resourceNetAppVolumeCreate(d *pluginsdk.ResourceData, meta interface{}) err
 		}
 	}
 
+	avsDataStoreEnabled := volumes.AvsDataStoreDisabled
+	if d.Get("azure_vmware_data_store_enabled").(bool) {
+		avsDataStoreEnabled = volumes.AvsDataStoreEnabled
+	}
+
 	parameters := volumes.Volume{
 		Location: location,
 		Properties: volumes.VolumeProperties{
-			CreationToken:   volumePath,
-			ServiceLevel:    &serviceLevel,
-			SubnetId:        subnetID,
-			NetworkFeatures: &networkFeatures,
-			ProtocolTypes:   utils.ExpandStringSlice(protocols),
-			SecurityStyle:   &securityStyle,
-			UsageThreshold:  storageQuotaInGB,
-			ExportPolicy:    exportPolicyRule,
-			VolumeType:      utils.String(volumeType),
-			SnapshotId:      utils.String(snapshotID),
+			CreationToken:             volumePath,
+			ServiceLevel:              &serviceLevel,
+			SubnetId:                  subnetID,
+			KerberosEnabled:           &kerberosEnabled,
+			SmbContinuouslyAvailable:  &smbContiuouslyAvailable,
+			SmbEncryption:             &smbEncryption,
+			NetworkFeatures:           &networkFeatures,
+			SmbNonBrowsable:           &smbNonBrowsable,
+			SmbAccessBasedEnumeration: &smbAccessBasedEnumeration,
+			ProtocolTypes:             utils.ExpandStringSlice(protocols),
+			SecurityStyle:             &securityStyle,
+			UsageThreshold:            storageQuotaInGB,
+			ExportPolicy:              exportPolicyRule,
+			VolumeType:                utils.String(volumeType),
+			SnapshotId:                utils.String(snapshotID),
 			DataProtection: &volumes.VolumePropertiesDataProtection{
 				Replication: dataProtectionReplication.Replication,
 				Snapshot:    dataProtectionSnapshotPolicy.Snapshot,
 			},
+			AvsDataStore:             &avsDataStoreEnabled,
 			SnapshotDirectoryVisible: utils.Bool(snapshotDirectoryVisible),
 		},
-		Tags: tags.Expand(d.Get("tags").(map[string]interface{})),
+		Tags:  tags.Expand(d.Get("tags").(map[string]interface{})),
+		Zones: zones,
 	}
 
 	if throughputMibps, ok := d.GetOk("throughput_in_mibps"); ok {
 		parameters.Properties.ThroughputMibps = utils.Float(throughputMibps.(float64))
+	}
+
+	if encryptionKeySource, ok := d.GetOk("encryption_key_source"); ok {
+		// Validating Microsoft.KeyVault encryption key provider is enabled only on Standard network features
+		if volumes.EncryptionKeySource(encryptionKeySource.(string)) == volumes.EncryptionKeySourceMicrosoftPointKeyVault && networkFeatures == volumes.NetworkFeaturesBasic {
+			return fmt.Errorf("volume encryption cannot be enabled when network features is set to basic: %s", id.ID())
+		}
+
+		parameters.Properties.EncryptionKeySource = pointer.To(volumes.EncryptionKeySource(encryptionKeySource.(string)))
+	}
+
+	if keyVaultPrivateEndpointID, ok := d.GetOk("key_vault_private_endpoint_id"); ok {
+		parameters.Properties.KeyVaultPrivateEndpointResourceId = pointer.To(keyVaultPrivateEndpointID.(string))
 	}
 
 	if err := client.CreateOrUpdateThenPoll(ctx, id, parameters); err != nil {
@@ -490,6 +617,10 @@ func resourceNetAppVolumeUpdate(d *pluginsdk.ResourceData, meta interface{}) err
 		Properties: &volumes.VolumePatchProperties{},
 	}
 
+	if d.HasChange("zones") {
+		return fmt.Errorf("zone changes are not supported after volume is already created, %s", id)
+	}
+
 	if d.HasChange("storage_quota_in_gb") {
 		shouldUpdate = true
 		storageQuotaInBytes := int64(d.Get("storage_quota_in_gb").(int) * 1073741824)
@@ -522,6 +653,26 @@ func resourceNetAppVolumeUpdate(d *pluginsdk.ResourceData, meta interface{}) err
 		shouldUpdate = true
 		throughputMibps := d.Get("throughput_in_mibps")
 		update.Properties.ThroughputMibps = utils.Float(throughputMibps.(float64))
+	}
+
+	if d.HasChange("smb_non_browsable_enabled") {
+		shouldUpdate = true
+		smbNonBrowsable := volumes.SmbNonBrowsableDisabled
+		update.Properties.SmbNonBrowsable = &smbNonBrowsable
+		if d.Get("smb_non_browsable_enabled").(bool) {
+			smbNonBrowsable := volumes.SmbNonBrowsableEnabled
+			update.Properties.SmbNonBrowsable = &smbNonBrowsable
+		}
+	}
+
+	if d.HasChange("smb_access_based_enumeration_enabled") {
+		shouldUpdate = true
+		smbAccessBasedEnumeration := volumes.SmbAccessBasedEnumerationDisabled
+		update.Properties.SmbAccessBasedEnumeration = &smbAccessBasedEnumeration
+		if d.Get("smb_access_based_enumeration_enabled").(bool) {
+			smbAccessBasedEnumeration := volumes.SmbAccessBasedEnumerationEnabled
+			update.Properties.SmbAccessBasedEnumeration = &smbAccessBasedEnumeration
+		}
 	}
 
 	if d.HasChange("tags") {
@@ -566,22 +717,54 @@ func resourceNetAppVolumeRead(d *pluginsdk.ResourceData, meta interface{}) error
 
 	d.Set("name", id.VolumeName)
 	d.Set("resource_group_name", id.ResourceGroupName)
-	d.Set("account_name", id.AccountName)
-	d.Set("pool_name", id.PoolName)
+	d.Set("account_name", id.NetAppAccountName)
+	d.Set("pool_name", id.CapacityPoolName)
 
 	if model := resp.Model; model != nil {
 		d.Set("location", azure.NormalizeLocation(model.Location))
 
+		zone := ""
+		if model.Zones != nil {
+			if zones := *model.Zones; len(zones) > 0 {
+				zone = zones[0]
+			}
+		}
+		d.Set("zone", zone)
+
 		props := model.Properties
 		d.Set("volume_path", props.CreationToken)
-		d.Set("service_level", props.ServiceLevel)
+		d.Set("service_level", string(pointer.From(props.ServiceLevel)))
 		d.Set("subnet_id", props.SubnetId)
-		d.Set("network_features", props.NetworkFeatures)
+		d.Set("kerberos_enabled", props.KerberosEnabled)
+		d.Set("smb_continuous_availability_enabled", props.SmbContinuouslyAvailable)
+		d.Set("smb3_protocol_encryption_enabled", props.SmbEncryption)
+		d.Set("network_features", string(pointer.From(props.NetworkFeatures)))
 		d.Set("protocols", props.ProtocolTypes)
-		d.Set("security_style", props.SecurityStyle)
+		d.Set("security_style", string(pointer.From(props.SecurityStyle)))
 		d.Set("snapshot_directory_visible", props.SnapshotDirectoryVisible)
 		d.Set("throughput_in_mibps", props.ThroughputMibps)
 		d.Set("storage_quota_in_gb", props.UsageThreshold/1073741824)
+		d.Set("encryption_key_source", string(pointer.From(props.EncryptionKeySource)))
+		d.Set("key_vault_private_endpoint_id", props.KeyVaultPrivateEndpointResourceId)
+
+		smbNonBrowsable := false
+		if props.SmbNonBrowsable != nil {
+			smbNonBrowsable = strings.EqualFold(string(*props.SmbNonBrowsable), string(volumes.SmbNonBrowsableEnabled))
+		}
+		d.Set("smb_non_browsable_enabled", smbNonBrowsable)
+
+		smbAccessBasedEnumeration := false
+		if props.SmbAccessBasedEnumeration != nil {
+			smbAccessBasedEnumeration = strings.EqualFold(string(*props.SmbAccessBasedEnumeration), string(volumes.SmbAccessBasedEnumerationEnabled))
+		}
+		d.Set("smb_access_based_enumeration_enabled", smbAccessBasedEnumeration)
+
+		avsDataStore := false
+		if props.AvsDataStore != nil {
+			avsDataStore = strings.EqualFold(string(*props.AvsDataStore), string(volumes.AvsDataStoreEnabled))
+		}
+		d.Set("azure_vmware_data_store_enabled", avsDataStore)
+
 		if err := d.Set("export_policy_rule", flattenNetAppVolumeExportPolicyRule(props.ExportPolicy)); err != nil {
 			return fmt.Errorf("setting `export_policy_rule`: %+v", err)
 		}
@@ -610,16 +793,18 @@ func resourceNetAppVolumeDelete(d *pluginsdk.ResourceData, meta interface{}) err
 		return err
 	}
 
-	// Removing replication if present
-	dataProtectionReplicationRaw := d.Get("data_protection_replication").([]interface{})
-	dataProtectionReplication := expandNetAppVolumeDataProtectionReplication(dataProtectionReplicationRaw)
+	netApp, err := client.Get(ctx, *id)
+	if err != nil {
+		return fmt.Errorf("fetching netapp error: %+v", err)
+	}
 
-	if dataProtectionReplication != nil && dataProtectionReplication.Replication != nil {
+	if netApp.Model != nil && netApp.Model.Properties.DataProtection != nil {
+		dataProtectionReplication := netApp.Model.Properties.DataProtection
 		replicaVolumeId, err := volumesreplication.ParseVolumeID(id.ID())
 		if err != nil {
 			return err
 		}
-		if dataProtectionReplication.Replication.EndpointType != nil && strings.ToLower(string(*dataProtectionReplication.Replication.EndpointType)) != "dst" {
+		if dataProtectionReplication.Replication != nil && dataProtectionReplication.Replication.EndpointType != nil && strings.ToLower(string(*dataProtectionReplication.Replication.EndpointType)) != "dst" {
 			// This is the case where primary volume started the deletion, in this case, to be consistent we will remove replication from secondary
 			replicaVolumeId, err = volumesreplication.ParseVolumeID(dataProtectionReplication.Replication.RemoteVolumeResourceId)
 			if err != nil {
@@ -628,7 +813,7 @@ func resourceNetAppVolumeDelete(d *pluginsdk.ResourceData, meta interface{}) err
 		}
 
 		replicationClient := meta.(*clients.Client).NetApp.VolumeReplicationClient
-		// Checking replication status before deletion, it need to be broken before proceeding with deletion
+		// Checking replication status before deletion, it needs to be broken before proceeding with deletion
 		if res, err := replicationClient.VolumesReplicationStatus(ctx, *replicaVolumeId); err == nil {
 			// Wait for replication state = "mirrored"
 			if model := res.Model; model != nil {
@@ -654,7 +839,7 @@ func resourceNetAppVolumeDelete(d *pluginsdk.ResourceData, meta interface{}) err
 		}
 
 		// Deleting replication and waiting for it to fully complete the operation
-		if err = replicationClient.VolumesDeleteReplicationThenPoll(ctx, *replicaVolumeId); err != nil {
+		if _, err = replicationClient.VolumesDeleteReplication(ctx, *replicaVolumeId); err != nil {
 			return fmt.Errorf("deleting replicate %s: %+v", *replicaVolumeId, err)
 		}
 
@@ -675,177 +860,6 @@ func resourceNetAppVolumeDelete(d *pluginsdk.ResourceData, meta interface{}) err
 	}
 
 	return nil
-}
-
-func waitForVolumeCreateOrUpdate(ctx context.Context, client *volumes.VolumesClient, id volumes.VolumeId) error {
-	deadline, ok := ctx.Deadline()
-	if !ok {
-		return fmt.Errorf("context had no deadline")
-	}
-	stateConf := &pluginsdk.StateChangeConf{
-		ContinuousTargetOccurence: 5,
-		Delay:                     10 * time.Second,
-		MinTimeout:                10 * time.Second,
-		Pending:                   []string{"204", "404"},
-		Target:                    []string{"200", "202"},
-		Refresh:                   netappVolumeStateRefreshFunc(ctx, client, id),
-		Timeout:                   time.Until(deadline),
-	}
-
-	if _, err := stateConf.WaitForStateContext(ctx); err != nil {
-		return fmt.Errorf("waiting for %s to finish creating: %+v", id, err)
-	}
-
-	return nil
-}
-
-func waitForReplAuthorization(ctx context.Context, client *volumesreplication.VolumesReplicationClient, id volumesreplication.VolumeId) error {
-	deadline, ok := ctx.Deadline()
-	if !ok {
-		return fmt.Errorf("context had no deadline")
-	}
-	stateConf := &pluginsdk.StateChangeConf{
-		ContinuousTargetOccurence: 5,
-		Delay:                     10 * time.Second,
-		MinTimeout:                10 * time.Second,
-		Pending:                   []string{"204", "404", "400"}, // TODO: Remove 400 when bug is fixed on RP side, where replicationStatus returns 400 at some point during authorization process
-		Target:                    []string{"200", "202"},
-		Refresh:                   netappVolumeReplicationStateRefreshFunc(ctx, client, id),
-		Timeout:                   time.Until(deadline),
-	}
-
-	if _, err := stateConf.WaitForStateContext(ctx); err != nil {
-		return fmt.Errorf("waiting for replication authorization %s to complete: %+v", id, err)
-	}
-
-	return nil
-}
-
-func waitForReplMirrorState(ctx context.Context, client *volumesreplication.VolumesReplicationClient, id volumesreplication.VolumeId, desiredState string) error {
-	deadline, ok := ctx.Deadline()
-	if !ok {
-		return fmt.Errorf("context had no deadline")
-	}
-	stateConf := &pluginsdk.StateChangeConf{
-		ContinuousTargetOccurence: 5,
-		Delay:                     10 * time.Second,
-		MinTimeout:                10 * time.Second,
-		Pending:                   []string{"200"}, // 200 means mirror state is still Mirrored
-		Target:                    []string{"204"}, // 204 means mirror state is <> than Mirrored
-		Refresh:                   netappVolumeReplicationMirrorStateRefreshFunc(ctx, client, id, desiredState),
-		Timeout:                   time.Until(deadline),
-	}
-
-	if _, err := stateConf.WaitForStateContext(ctx); err != nil {
-		return fmt.Errorf("waiting for %s to be in the state %q: %+v", id, desiredState, err)
-	}
-
-	return nil
-}
-
-func waitForReplicationDeletion(ctx context.Context, client *volumesreplication.VolumesReplicationClient, id volumesreplication.VolumeId) error {
-	deadline, ok := ctx.Deadline()
-	if !ok {
-		return fmt.Errorf("context had no deadline")
-	}
-
-	stateConf := &pluginsdk.StateChangeConf{
-		ContinuousTargetOccurence: 5,
-		Delay:                     10 * time.Second,
-		MinTimeout:                10 * time.Second,
-		Pending:                   []string{"200", "202", "400"}, // TODO: Remove 400 when bug is fixed on RP side, where replicationStatus returns 400 while it is in "Deleting" state
-		Target:                    []string{"404"},
-		Refresh:                   netappVolumeReplicationStateRefreshFunc(ctx, client, id),
-		Timeout:                   time.Until(deadline),
-	}
-
-	if _, err := stateConf.WaitForStateContext(ctx); err != nil {
-		return fmt.Errorf("waiting for Replication of %s to be deleted: %+v", id, err)
-	}
-
-	return nil
-}
-
-func waitForVolumeDeletion(ctx context.Context, client *volumes.VolumesClient, id volumes.VolumeId) error {
-	deadline, ok := ctx.Deadline()
-	if !ok {
-		return fmt.Errorf("context had no deadline")
-	}
-	stateConf := &pluginsdk.StateChangeConf{
-		ContinuousTargetOccurence: 5,
-		Delay:                     10 * time.Second,
-		MinTimeout:                10 * time.Second,
-		Pending:                   []string{"200", "202"},
-		Target:                    []string{"204", "404"},
-		Refresh:                   netappVolumeStateRefreshFunc(ctx, client, id),
-		Timeout:                   time.Until(deadline),
-	}
-
-	if _, err := stateConf.WaitForStateContext(ctx); err != nil {
-		return fmt.Errorf("waiting for %s to be deleted: %+v", id, err)
-	}
-
-	return nil
-}
-
-func netappVolumeStateRefreshFunc(ctx context.Context, client *volumes.VolumesClient, id volumes.VolumeId) pluginsdk.StateRefreshFunc {
-	return func() (interface{}, string, error) {
-		res, err := client.Get(ctx, id)
-		if err != nil {
-			if !response.WasNotFound(res.HttpResponse) {
-				return nil, "", fmt.Errorf("retrieving %s: %s", id, err)
-			}
-		}
-
-		return res, strconv.Itoa(res.HttpResponse.StatusCode), nil
-	}
-}
-
-func netappVolumeReplicationMirrorStateRefreshFunc(ctx context.Context, client *volumesreplication.VolumesReplicationClient, id volumesreplication.VolumeId, desiredState string) pluginsdk.StateRefreshFunc {
-	validStates := []string{"mirrored", "broken", "uninitialized"}
-
-	return func() (interface{}, string, error) {
-		// Possible Mirror States to be used as desiredStates:
-		// mirrored, broken or uninitialized
-		if !utils.SliceContainsValue(validStates, strings.ToLower(desiredState)) {
-			return nil, "", fmt.Errorf("Invalid desired mirror state was passed to check mirror replication state (%s), possible values: (%+v)", desiredState, volumesreplication.PossibleValuesForMirrorState())
-		}
-
-		res, err := client.VolumesReplicationStatus(ctx, id)
-		if err != nil {
-			if !response.WasNotFound(res.HttpResponse) {
-				return nil, "", fmt.Errorf("retrieving replication status information from %s: %s", id, err)
-			}
-		}
-
-		// TODO: fix this refresh function to use strings instead of fake status codes
-		// Setting 200 as default response
-		response := 200
-		if res.Model != nil && res.Model.MirrorState != nil && strings.EqualFold(string(*res.Model.MirrorState), desiredState) {
-			// return 204 if state matches desired state
-			response = 204
-		}
-
-		return res, strconv.Itoa(response), nil
-	}
-}
-
-func netappVolumeReplicationStateRefreshFunc(ctx context.Context, client *volumesreplication.VolumesReplicationClient, id volumesreplication.VolumeId) pluginsdk.StateRefreshFunc {
-	return func() (interface{}, string, error) {
-		res, err := client.VolumesReplicationStatus(ctx, id)
-		if err != nil {
-			if httpResponse := res.HttpResponse; httpResponse != nil {
-				if httpResponse.StatusCode == 400 && (strings.Contains(strings.ToLower(err.Error()), "deleting") || strings.Contains(strings.ToLower(err.Error()), "volume replication missing or deleted")) {
-					// This error can be ignored until a bug is fixed on RP side that it is returning 400 while the replication is in "Deleting" process
-					// TODO: remove this workaround when above bug is fixed
-				} else if !response.WasNotFound(httpResponse) {
-					return nil, "", fmt.Errorf("retrieving replication status from %s: %s", id, err)
-				}
-			}
-		}
-
-		return res, strconv.Itoa(res.HttpResponse.StatusCode), nil
-	}
 }
 
 func expandNetAppVolumeExportPolicyRule(input []interface{}) *volumes.VolumePropertiesExportPolicy {
@@ -881,16 +895,28 @@ func expandNetAppVolumeExportPolicyRule(input []interface{}) *volumes.VolumeProp
 			unixReadOnly := v["unix_read_only"].(bool)
 			unixReadWrite := v["unix_read_write"].(bool)
 			rootAccessEnabled := v["root_access_enabled"].(bool)
+			kerberos5ro := v["kerberos_5_read_only_enabled"].(bool)
+			kerberos5rw := v["kerberos_5_read_write_enabled"].(bool)
+			kerberos5iro := v["kerberos_5i_read_only_enabled"].(bool)
+			kerberos5irw := v["kerberos_5i_read_write_enabled"].(bool)
+			kerberos5pro := v["kerberos_5p_read_only_enabled"].(bool)
+			kerberos5prw := v["kerberos_5p_read_write_enabled"].(bool)
 
 			result := volumes.ExportPolicyRule{
-				AllowedClients: utils.String(allowedClients),
-				Cifs:           utils.Bool(cifsEnabled),
-				Nfsv3:          utils.Bool(nfsv3Enabled),
-				Nfsv41:         utils.Bool(nfsv41Enabled),
-				RuleIndex:      utils.Int64(ruleIndex),
-				UnixReadOnly:   utils.Bool(unixReadOnly),
-				UnixReadWrite:  utils.Bool(unixReadWrite),
-				HasRootAccess:  utils.Bool(rootAccessEnabled),
+				AllowedClients:      utils.String(allowedClients),
+				Cifs:                utils.Bool(cifsEnabled),
+				Nfsv3:               utils.Bool(nfsv3Enabled),
+				Nfsv41:              utils.Bool(nfsv41Enabled),
+				Kerberos5ReadOnly:   utils.Bool(kerberos5ro),
+				Kerberos5ReadWrite:  utils.Bool(kerberos5rw),
+				Kerberos5iReadOnly:  utils.Bool(kerberos5iro),
+				Kerberos5iReadWrite: utils.Bool(kerberos5irw),
+				Kerberos5pReadOnly:  utils.Bool(kerberos5pro),
+				Kerberos5pReadWrite: utils.Bool(kerberos5prw),
+				RuleIndex:           utils.Int64(ruleIndex),
+				UnixReadOnly:        utils.Bool(unixReadOnly),
+				UnixReadWrite:       utils.Bool(unixReadWrite),
+				HasRootAccess:       utils.Bool(rootAccessEnabled),
 			}
 
 			results = append(results, result)
@@ -910,9 +936,9 @@ func expandNetAppVolumeExportPolicyRulePatch(input []interface{}) *volumes.Volum
 			ruleIndex := int64(v["rule_index"].(int))
 			allowedClients := strings.Join(*utils.ExpandStringSlice(v["allowed_clients"].(*pluginsdk.Set).List()), ",")
 
-			cifsEnabled := false
 			nfsv3Enabled := false
 			nfsv41Enabled := false
+			cifsEnabled := false
 
 			if vpe := v["protocols_enabled"]; vpe != nil {
 				protocolsEnabled := vpe.([]interface{})
@@ -956,71 +982,6 @@ func expandNetAppVolumeExportPolicyRulePatch(input []interface{}) *volumes.Volum
 	}
 }
 
-func expandNetAppVolumeDataProtectionReplication(input []interface{}) *volumes.VolumePropertiesDataProtection {
-	if len(input) == 0 || input[0] == nil {
-		return &volumes.VolumePropertiesDataProtection{}
-	}
-
-	replicationObject := volumes.ReplicationObject{}
-
-	replicationRaw := input[0].(map[string]interface{})
-
-	if v, ok := replicationRaw["endpoint_type"]; ok {
-		endpointType := volumes.EndpointType(v.(string))
-		replicationObject.EndpointType = &endpointType
-	}
-	if v, ok := replicationRaw["remote_volume_location"]; ok {
-		replicationObject.RemoteVolumeRegion = utils.String(v.(string))
-	}
-	if v, ok := replicationRaw["remote_volume_resource_id"]; ok {
-		replicationObject.RemoteVolumeResourceId = v.(string)
-	}
-	if v, ok := replicationRaw["replication_frequency"]; ok {
-		replicationSchedule := volumes.ReplicationSchedule(translateTFSchedule(v.(string)))
-		replicationObject.ReplicationSchedule = &replicationSchedule
-	}
-
-	return &volumes.VolumePropertiesDataProtection{
-		Replication: &replicationObject,
-	}
-}
-
-func expandNetAppVolumeDataProtectionSnapshotPolicy(input []interface{}) *volumes.VolumePropertiesDataProtection {
-	if len(input) == 0 || input[0] == nil {
-		return &volumes.VolumePropertiesDataProtection{}
-	}
-
-	snapshotObject := volumes.VolumeSnapshotProperties{}
-
-	snapshotRaw := input[0].(map[string]interface{})
-
-	if v, ok := snapshotRaw["snapshot_policy_id"]; ok {
-		snapshotObject.SnapshotPolicyId = utils.String(v.(string))
-	}
-
-	return &volumes.VolumePropertiesDataProtection{
-		Snapshot: &snapshotObject,
-	}
-}
-
-func expandNetAppVolumeDataProtectionSnapshotPolicyPatch(input []interface{}) *volumes.VolumePatchPropertiesDataProtection {
-	if len(input) == 0 || input[0] == nil {
-		return &volumes.VolumePatchPropertiesDataProtection{}
-	}
-
-	snapshotObject := volumes.VolumeSnapshotProperties{}
-
-	snapshotRaw := input[0].(map[string]interface{})
-
-	if v, ok := snapshotRaw["snapshot_policy_id"]; ok {
-		snapshotObject.SnapshotPolicyId = utils.String(v.(string))
-	}
-
-	return &volumes.VolumePatchPropertiesDataProtection{
-		Snapshot: &snapshotObject,
-	}
-}
-
 func flattenNetAppVolumeExportPolicyRule(input *volumes.VolumePropertiesExportPolicy) []interface{} {
 	results := make([]interface{}, 0)
 	if input == nil || input.Rules == nil {
@@ -1038,41 +999,29 @@ func flattenNetAppVolumeExportPolicyRule(input *volumes.VolumePropertiesExportPo
 		}
 
 		protocolsEnabled := []string{}
-		if v := item.Cifs; v != nil {
-			if *v {
-				protocolsEnabled = append(protocolsEnabled, "CIFS")
-			}
+		if utils.NormaliseNilableBool(item.Cifs) {
+			protocolsEnabled = append(protocolsEnabled, "CIFS")
 		}
-		if v := item.Nfsv3; v != nil {
-			if *v {
-				protocolsEnabled = append(protocolsEnabled, "NFSv3")
-			}
+		if utils.NormaliseNilableBool(item.Nfsv3) {
+			protocolsEnabled = append(protocolsEnabled, "NFSv3")
 		}
-		if v := item.Nfsv41; v != nil {
-			if *v {
-				protocolsEnabled = append(protocolsEnabled, "NFSv4.1")
-			}
-		}
-		unixReadOnly := false
-		if v := item.UnixReadOnly; v != nil {
-			unixReadOnly = *v
-		}
-		unixReadWrite := false
-		if v := item.UnixReadWrite; v != nil {
-			unixReadWrite = *v
-		}
-		rootAccessEnabled := false
-		if v := item.HasRootAccess; v != nil {
-			rootAccessEnabled = *v
+		if utils.NormaliseNilableBool(item.Nfsv41) {
+			protocolsEnabled = append(protocolsEnabled, "NFSv4.1")
 		}
 
 		result := map[string]interface{}{
-			"rule_index":          ruleIndex,
-			"allowed_clients":     utils.FlattenStringSlice(&allowedClients),
-			"unix_read_only":      unixReadOnly,
-			"unix_read_write":     unixReadWrite,
-			"root_access_enabled": rootAccessEnabled,
-			"protocols_enabled":   utils.FlattenStringSlice(&protocolsEnabled),
+			"allowed_clients":                utils.FlattenStringSlice(&allowedClients),
+			"kerberos_5_read_only_enabled":   utils.NormaliseNilableBool(item.Kerberos5ReadOnly),
+			"kerberos_5_read_write_enabled":  utils.NormaliseNilableBool(item.Kerberos5ReadWrite),
+			"kerberos_5i_read_only_enabled":  utils.NormaliseNilableBool(item.Kerberos5iReadOnly),
+			"kerberos_5i_read_write_enabled": utils.NormaliseNilableBool(item.Kerberos5iReadWrite),
+			"kerberos_5p_read_only_enabled":  utils.NormaliseNilableBool(item.Kerberos5pReadOnly),
+			"kerberos_5p_read_write_enabled": utils.NormaliseNilableBool(item.Kerberos5pReadWrite),
+			"protocols_enabled":              utils.FlattenStringSlice(&protocolsEnabled),
+			"root_access_enabled":            utils.NormaliseNilableBool(item.HasRootAccess),
+			"rule_index":                     ruleIndex,
+			"unix_read_only":                 utils.NormaliseNilableBool(item.UnixReadOnly),
+			"unix_read_write":                utils.NormaliseNilableBool(item.UnixReadWrite),
 		}
 		results = append(results, result)
 	}
@@ -1120,7 +1069,7 @@ func flattenNetAppVolumeDataProtectionReplication(input *volumes.VolumePropertie
 }
 
 func flattenNetAppVolumeDataProtectionSnapshotPolicy(input *volumes.VolumePropertiesDataProtection) []interface{} {
-	if input == nil || input.Snapshot == nil || *input.Snapshot.SnapshotPolicyId == "" {
+	if input == nil || input.Snapshot == nil || input.Snapshot.SnapshotPolicyId == nil || *input.Snapshot.SnapshotPolicyId == "" {
 		return []interface{}{}
 	}
 
@@ -1129,20 +1078,4 @@ func flattenNetAppVolumeDataProtectionSnapshotPolicy(input *volumes.VolumeProper
 			"snapshot_policy_id": input.Snapshot.SnapshotPolicyId,
 		},
 	}
-}
-
-func translateTFSchedule(scheduleName string) string {
-	if strings.EqualFold(scheduleName, "10minutes") {
-		return "_10minutely"
-	}
-
-	return scheduleName
-}
-
-func translateSDKSchedule(scheduleName string) string {
-	if strings.EqualFold(scheduleName, "_10minutely") {
-		return "10minutes"
-	}
-
-	return scheduleName
 }

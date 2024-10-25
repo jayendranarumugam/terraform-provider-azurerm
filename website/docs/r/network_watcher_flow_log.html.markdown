@@ -97,30 +97,30 @@ The following arguments are supported:
 
 * `traffic_analytics` - (Optional) A `traffic_analytics` block as documented below.
 
-* `version` - (Optional) The version (revision) of the flow log. Possible values are `1` and `2`.
+* `version` - (Optional) The version (revision) of the flow log. Possible values are `1` and `2`. Defaults to `1`.
 
 * `tags` - (Optional) A mapping of tags which should be assigned to the Network Watcher Flow Log.
 
 ---
 
-* `retention_policy` supports the following:
+The `retention_policy` block supports the following:
 
 * `enabled` - (Required) Boolean flag to enable/disable retention.
 * `days` - (Required) The number of days to retain flow log records.
-
+ 
 ---
 
-* `traffic_analytics` supports the following:
+The `traffic_analytics` block supports the following:
 
 * `enabled` - (Required) Boolean flag to enable/disable traffic analytics.
 * `workspace_id` - (Required) The resource GUID of the attached workspace.
 * `workspace_region` - (Required) The location of the attached workspace.
 * `workspace_resource_id` - (Required) The resource ID of the attached workspace.
-* `interval_in_minutes` - (Optional) How frequently service should do flow analytics in minutes.
+* `interval_in_minutes` - (Optional) How frequently service should do flow analytics in minutes. Defaults to `60`.
 
 ## Attributes Reference
 
-The following attributes are exported:
+In addition to the Arguments listed above - the following Attributes are exported:
 
 * `id` - The ID of the Network Watcher.
 

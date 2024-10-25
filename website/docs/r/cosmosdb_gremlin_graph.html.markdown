@@ -70,17 +70,21 @@ The following arguments are supported:
 
 * `throughput` - (Optional) The throughput of the Gremlin graph (RU/s). Must be set in increments of `100`. The minimum value is `400`. This must be set upon database creation otherwise it cannot be updated without a manual terraform destroy-apply.
 
+* `analytical_storage_ttl` - (Optional) The time to live of Analytical Storage for this Cosmos DB Gremlin Graph. Possible values are between `-1` to `2147483647` not including `0`. If present and the value is set to `-1`, it means never expire.
+
+~> **Note:** Disabling `analytical_storage_ttl` will force a new resource to be created since it can't be disabled once it's enabled.
+
 * `default_ttl` - (Optional) The default time to live (TTL) of the Gremlin graph. If the value is missing or set to "-1", items don’t expire.
 
 * `autoscale_settings` - (Optional) An `autoscale_settings` block as defined below. This must be set upon database creation otherwise it cannot be updated without a manual terraform destroy-apply. Requires `partition_key_path` to be set.
 
 ~> **Note:** Switching between autoscale and manual throughput is not supported via Terraform and must be completed via the Azure Portal and refreshed.
 
-* `index_policy` - (Required) The configuration of the indexing policy. One or more `index_policy` blocks as defined below.
+* `index_policy` - (Optional) The configuration of the indexing policy. One or more `index_policy` blocks as defined below.
 
-* `conflict_resolution_policy` - (Optional)  A `conflict_resolution_policy` blocks as defined below.
+* `conflict_resolution_policy` - (Optional) A `conflict_resolution_policy` blocks as defined below. Changing this forces a new resource to be created.
 
-* `unique_key` (Optional) One or more `unique_key` blocks as defined below. Changing this forces a new resource to be created.
+* `unique_key` - (Optional) One or more `unique_key` blocks as defined below. Changing this forces a new resource to be created.
 
 ---
 
@@ -124,25 +128,25 @@ An `conflict_resolution_policy` block supports the following:
 
 An `unique_key` block supports the following:
 
-* `paths` - (Required) A list of paths to use for this unique key.
+* `paths` - (Required) A list of paths to use for this unique key. Changing this forces a new resource to be created.
 
 ---
 
 A `composite_index` block supports the following:
 
-* `index` - One or more `index` blocks as defined below.
+* `index` - (Required) One or more `index` blocks as defined below.
 
 ---
 
 An `index` block supports the following:
 
-* `path` - Path for which the indexing behaviour applies to.
+* `path` - (Required) Path for which the indexing behaviour applies to.
 
-* `order` - Order of the index. Possible values are `Ascending` or `Descending`.
+* `order` - (Required) Order of the index. Possible values are `Ascending` or `Descending`.
 
 ## Attributes Reference
 
-The following attributes are exported:
+In addition to the Arguments listed above - the following Attributes are exported:
 
 * `id` - The ID of the CosmosDB Gremlin Graph.
 

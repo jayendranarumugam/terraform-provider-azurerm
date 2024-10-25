@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package compute_test
 
 import (
@@ -40,7 +43,6 @@ func TestAccDataSourceImage_localFilter(t *testing.T) {
 	r := ImageDataSource{}
 
 	descDataSourceName := "data.azurerm_image.test2"
-
 	data.DataSourceTest(t, []acceptance.TestStep{
 		{
 			// We have to create the images first explicitly, then retrieve the data source, because in this case we do not have explicit dependency on the image resources
@@ -51,10 +53,8 @@ func TestAccDataSourceImage_localFilter(t *testing.T) {
 			Check: acceptance.ComposeTestCheckFunc(
 				check.That(data.ResourceName).Key("name").Exists(),
 				check.That(data.ResourceName).Key("resource_group_name").Exists(),
-				check.That(data.ResourceName).Key("name").HasValue(fmt.Sprintf("def-acctest-%d", data.RandomInteger)),
-				acceptance.TestCheckResourceAttrSet(descDataSourceName, "name"),
-				acceptance.TestCheckResourceAttrSet(descDataSourceName, "resource_group_name"),
-				acceptance.TestCheckResourceAttr(descDataSourceName, "name", fmt.Sprintf("def-acctest-%d", data.RandomInteger)),
+				check.That(data.ResourceName).Key("name").MatchesOtherKey(check.That(descDataSourceName).Key("name")),
+				check.That(data.ResourceName).Key("resource_group_name").MatchesOtherKey(check.That(descDataSourceName).Key("resource_group_name")),
 			),
 		},
 	})
@@ -90,6 +90,7 @@ resource "azurerm_public_ip" "test" {
   location            = azurerm_resource_group.test.location
   resource_group_name = azurerm_resource_group.test.name
   allocation_method   = "Dynamic"
+  sku                 = "Basic"
   domain_name_label   = "acctestpip%d"
 }
 
@@ -134,8 +135,8 @@ resource "azurerm_virtual_machine" "testsource" {
 
   storage_image_reference {
     publisher = "Canonical"
-    offer     = "UbuntuServer"
-    sku       = "16.04-LTS"
+    offer     = "0001-com-ubuntu-server-jammy"
+    sku       = "22_04-lts"
     version   = "latest"
   }
 
@@ -223,6 +224,7 @@ resource "azurerm_public_ip" "test" {
   location            = azurerm_resource_group.test.location
   resource_group_name = azurerm_resource_group.test.name
   allocation_method   = "Dynamic"
+  sku                 = "Basic"
   domain_name_label   = "acctestpip%d"
 }
 
@@ -267,8 +269,8 @@ resource "azurerm_virtual_machine" "testsource" {
 
   storage_image_reference {
     publisher = "Canonical"
-    offer     = "UbuntuServer"
-    sku       = "16.04-LTS"
+    offer     = "0001-com-ubuntu-server-jammy"
+    sku       = "22_04-lts"
     version   = "latest"
   }
 

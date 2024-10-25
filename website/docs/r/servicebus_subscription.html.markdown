@@ -33,7 +33,7 @@ resource "azurerm_servicebus_topic" "example" {
   name         = "tfex_servicebus_topic"
   namespace_id = azurerm_servicebus_namespace.example.id
 
-  enable_partitioning = true
+  partitioning_enabled = true
 }
 
 resource "azurerm_servicebus_subscription" "example" {
@@ -53,19 +53,19 @@ The following arguments are supported:
 
 * `max_delivery_count` - (Required) The maximum number of deliveries.
 
-* `auto_delete_on_idle` - (Optional) The idle interval after which the topic is automatically deleted as an [ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations). The minimum duration is `5` minutes or `PT5M`.
+* `auto_delete_on_idle` - (Optional) The idle interval after which the topic is automatically deleted as an [ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations). The minimum duration is `5` minutes or `PT5M`. Defaults to `P10675199DT2H48M5.4775807S`.
 
-* `default_message_ttl` - (Optional) The Default message timespan to live as an [ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations). This is the duration after which the message expires, starting from when the message is sent to Service Bus. This is the default value used when TimeToLive is not set on a message itself.
+* `default_message_ttl` - (Optional) The Default message timespan to live as an [ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations). This is the duration after which the message expires, starting from when the message is sent to Service Bus. This is the value used when TimeToLive is not set on a message itself. Defaults to `P10675199DT2H48M5.4775807S`.
 
-* `lock_duration` - (Optional) The lock duration for the subscription as an [ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations). The default value is `1` minute or  `P0DT0H1M0S` . The maximum value is `5` minutes or `P0DT0H5M0S` .
+* `lock_duration` - (Optional) The lock duration for the subscription as an [ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations). The default value is `1` minute or `P0DT0H1M0S` . The maximum value is `5` minutes or `P0DT0H5M0S` . Defaults to `PT1M`.
 
-* `dead_lettering_on_message_expiration` - (Optional) Boolean flag which controls whether the Subscription has dead letter support when a message expires. Defaults to `false`.
+* `dead_lettering_on_message_expiration` - (Optional) Boolean flag which controls whether the Subscription has dead letter support when a message expires.
 
 * `dead_lettering_on_filter_evaluation_error` - (Optional) Boolean flag which controls whether the Subscription has dead letter support on filter evaluation exceptions. Defaults to `true`.
 
-* `enable_batched_operations` - (Optional) Boolean flag which controls whether the Subscription supports batched operations. Defaults to `false`.
+* `batched_operations_enabled` - (Optional) Boolean flag which controls whether the Subscription supports batched operations.
 
-* `requires_session` - (Optional) Boolean flag which controls whether this Subscription supports the concept of a session. Defaults to `false`. Changing this forces a new resource to be created.
+* `requires_session` - (Optional) Boolean flag which controls whether this Subscription supports the concept of a session. Changing this forces a new resource to be created.
 
 * `forward_to` - (Optional) The name of a Queue or Topic to automatically forward messages to.
 
@@ -73,27 +73,27 @@ The following arguments are supported:
 
 * `status` - (Optional) The status of the Subscription. Possible values are `Active`,`ReceiveDisabled`, or `Disabled`. Defaults to `Active`.
 
-* `client_scoped_subscription_enabled` - (Optional)  whether the subscription is scoped to a client id. Defaults to `False`.
+* `client_scoped_subscription_enabled` - (Optional) whether the subscription is scoped to a client id. Defaults to `false`.
 
 ~> **NOTE:** Client Scoped Subscription can only be used for JMS subscription (Java Message Service).
 
-* `client_scoped_subscription` - (Optional)  A `client_scoped_subscription` block as defined below.
+* `client_scoped_subscription` - (Optional) A `client_scoped_subscription` block as defined below.
 
 ---
 
 A `client_scoped_subscription` block supports the following:
 
-* `client_id` - (Optional)  Specifies the Client ID of the application that created the client-scoped subscription.
+* `client_id` - (Optional) Specifies the Client ID of the application that created the client-scoped subscription. Changing this forces a new resource to be created.
 
 ~> **NOTE:** Client ID can be null or empty, but it must match the client ID set on the JMS client application. From the Azure Service Bus perspective, a null client ID and an empty client id have the same behavior. If the client ID is set to null or empty, it is only accessible to client applications whose client ID is also set to null or empty.
 
-* `is_client_scoped_subscription_shareable` - (Optional) Whether the client scoped subscription is shareable. Defaults to `true`
+* `is_client_scoped_subscription_shareable` - (Optional) Whether the client scoped subscription is shareable. Defaults to `true` Changing this forces a new resource to be created.
 
 * `is_client_scoped_subscription_durable` - (Optional) Whether the client scoped subscription is durable. This property can only be controlled from the application side.
 
 ## Attributes Reference
 
-The following attributes are exported:
+In addition to the Arguments listed above - the following Attributes are exported:
 
 * `id` - The ServiceBus Subscription ID.
 

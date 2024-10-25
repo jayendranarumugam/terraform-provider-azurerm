@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package dns_test
 
 import (
@@ -94,7 +97,7 @@ func TestAccDnsARecord_withTags(t *testing.T) {
 	})
 }
 
-func TestAccAzureRMDnsARecord_withAlias(t *testing.T) {
+func TestAccDnsARecord_withAlias(t *testing.T) {
 	data := acceptance.BuildTestData(t, "azurerm_dns_a_record", "test")
 	r := TestAccDnsARecordResource{}
 	targetResourceName := "azurerm_public_ip.test"
@@ -119,7 +122,7 @@ func TestAccAzureRMDnsARecord_withAlias(t *testing.T) {
 	})
 }
 
-func TestAccAzureRMDnsARecord_RecordsToAlias(t *testing.T) {
+func TestAccDnsARecord_RecordsToAlias(t *testing.T) {
 	data := acceptance.BuildTestData(t, "azurerm_dns_a_record", "test")
 	r := TestAccDnsARecordResource{}
 	targetResourceName := "azurerm_public_ip.test"
@@ -144,7 +147,7 @@ func TestAccAzureRMDnsARecord_RecordsToAlias(t *testing.T) {
 	})
 }
 
-func TestAccAzureRMDnsARecord_AliasToRecords(t *testing.T) {
+func TestAccDnsARecord_AliasToRecords(t *testing.T) {
 	data := acceptance.BuildTestData(t, "azurerm_dns_a_record", "test")
 	r := TestAccDnsARecordResource{}
 	targetResourceName := "azurerm_public_ip.test"
@@ -332,6 +335,7 @@ resource "azurerm_public_ip" "test" {
   resource_group_name = azurerm_resource_group.test.name
   allocation_method   = "Dynamic"
   ip_version          = "IPv4"
+  sku                 = "Basic"
 }
 
 resource "azurerm_dns_a_record" "test" {
@@ -366,6 +370,7 @@ resource "azurerm_public_ip" "test2" {
   resource_group_name = azurerm_resource_group.test.name
   allocation_method   = "Dynamic"
   ip_version          = "IPv4"
+  sku                 = "Basic"
 }
 
 resource "azurerm_dns_a_record" "test" {
@@ -400,6 +405,7 @@ resource "azurerm_public_ip" "test" {
   resource_group_name = azurerm_resource_group.test.name
   allocation_method   = "Dynamic"
   ip_version          = "IPv4"
+  sku                 = "Basic"
 }
 
 resource "azurerm_dns_a_record" "test" {

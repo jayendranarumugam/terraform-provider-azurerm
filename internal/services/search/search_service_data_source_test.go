@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package search_test
 
 import (
@@ -26,6 +29,7 @@ func TestAccDataSourceSearchService_basic(t *testing.T) {
 				check.That(data.ResourceName).Key("identity.0.type").Exists(),
 				check.That(data.ResourceName).Key("identity.0.principal_id").Exists(),
 				check.That(data.ResourceName).Key("identity.0.tenant_id").Exists(),
+				check.That(data.ResourceName).Key("tags.environment").HasValue("production"),
 			),
 		},
 	})
@@ -50,6 +54,10 @@ resource "azurerm_search_service" "test" {
 
   identity {
     type = "SystemAssigned"
+  }
+
+  tags = {
+    environment = "production"
   }
 }
 

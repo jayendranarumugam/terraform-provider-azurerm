@@ -43,6 +43,7 @@ resource "azurerm_spring_cloud_api_portal" "example" {
   https_only_enabled            = false
   public_network_access_enabled = true
   instance_count                = 1
+  api_try_out_enabled           = true
   sso {
     client_id     = "test"
     client_secret = "secret"
@@ -61,6 +62,8 @@ The following arguments are supported:
 * `spring_cloud_service_id` - (Required) The ID of the Spring Cloud Service. Changing this forces a new Spring Cloud API Portal to be created.
 
 ---
+
+* `api_try_out_enabled` - (Optional) Specifies whether the API try-out feature is enabled. When enabled, users can try out the API by sending requests and viewing responses in API portal.
 
 * `gateway_ids` - (Optional) Specifies a list of Spring Cloud Gateway.
 
@@ -96,15 +99,15 @@ In addition to the Arguments listed above - the following Attributes are exporte
 
 The `timeouts` block allows you to specify [timeouts](https://www.terraform.io/language/resources/syntax#operation-timeouts) for certain actions:
 
-* `create` - (Defaults to 60 minutes) Used when creating the Spring Cloud API Portal.
+* `create` - (Defaults to 30 minutes) Used when creating the Spring Cloud API Portal.
 * `read` - (Defaults to 5 minutes) Used when retrieving the Spring Cloud API Portal.
-* `update` - (Defaults to 60 minutes) Used when updating the Spring Cloud API Portal.
-* `delete` - (Defaults to 60 minutes) Used when deleting the Spring Cloud API Portal.
+* `update` - (Defaults to 30 minutes) Used when updating the Spring Cloud API Portal.
+* `delete` - (Defaults to 30 minutes) Used when deleting the Spring Cloud API Portal.
 
 ## Import
 
 Spring Cloud API Portals can be imported using the `resource id`, e.g.
 
 ```shell
-terraform import azurerm_spring_cloud_api_portal.example /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/resourceGroup1/providers/Microsoft.AppPlatform/Spring/service1/apiPortals/apiPortal1
+terraform import azurerm_spring_cloud_api_portal.example /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/resourceGroup1/providers/Microsoft.AppPlatform/spring/service1/apiPortals/apiPortal1
 ```

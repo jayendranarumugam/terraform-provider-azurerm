@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package postgres
 
 import (
@@ -137,7 +140,6 @@ func resourcePostgreSQLAdministratorRead(d *pluginsdk.ResourceData, meta interfa
 			d.Set("object_id", props.Sid)
 			d.Set("tenant_id", props.TenantId)
 		}
-
 	}
 
 	return nil

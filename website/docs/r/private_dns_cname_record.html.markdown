@@ -36,13 +36,13 @@ resource "azurerm_private_dns_cname_record" "example" {
 
 The following arguments are supported:
 
-* `name` - (Required) The name of the DNS CNAME Record.
+* `name` - (Required) The name of the DNS CNAME Record. Changing this forces a new resource to be created.
 
 * `resource_group_name` - (Required) Specifies the resource group where the resource exists. Changing this forces a new resource to be created.
 
 * `zone_name` - (Required) Specifies the Private DNS Zone where the resource exists. Changing this forces a new resource to be created.
 
-* `ttl` - (Required) The Time To Live (TTL) of the DNS record in seconds.
+* `ttl` - (Required) The Time To Live (TTL) of the DNS record in seconds. Possible values are between `0` and `2147483647`.
 
 * `record` - (Required) The target of the CNAME.
 
@@ -50,7 +50,7 @@ The following arguments are supported:
 
 ## Attributes Reference
 
-The following attributes are exported:
+In addition to the Arguments listed above - the following Attributes are exported:
 
 * `id` - The Private DNS CNAME Record ID.
 

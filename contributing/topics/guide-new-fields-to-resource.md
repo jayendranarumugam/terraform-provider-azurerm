@@ -40,14 +40,16 @@ func (ResourceGroupExampleResource) Arguments() map[string]*pluginsdk.Schema {
 
 * Ensure there is appropriate validation, at the very least `validation.StringIsNotEmpty` should be set for strings where a validation pattern cannot be determined.
 
+* When adding multiple properties or blocks thought should be given on how to map these, see [schema design considerations](schema-design-considerations.md) for specific examples. 
+
 ## Create function
 
 * The new property needs to be set in the properties struct for the resource.
 
 ```go
 props := machinelearning.Workspace{
-	WorkspaceProperties: &machinelearning.WorkspaceProperties{
-		PublicNetworkAccess: utils.Bool(d.Get("public_network_access_enabled").(bool))
+	Properties: &machinelearning.WorkspaceProperties{
+		PublicNetworkAccess: pointer.To(d.Get("public_network_access_enabled").(bool))
     }
 }
 ```
@@ -58,7 +60,7 @@ props := machinelearning.Workspace{
 
 ```go
 if d.HasChange("public_network_access_enabled") {
-	props.WorkspaceProperties.PublicNetworkAccess = utils.Bool(d.Get("public_network_access_enabled").(bool))
+	existing.Model.Properties.PublicNetworkAccess = pointer.From(d.Get("public_network_access_enabled").(bool))
 }
 ```
 
@@ -70,7 +72,7 @@ if d.HasChange("public_network_access_enabled") {
 
 ```go
 publicNetworkAccess := true
-if v := props.WorkspaceProperties.PublicNetworkAccess; v != nil {
+if v := props.PublicNetworkAccess; v != nil {
 	publicNetworkAccess = *v
 }
 d.Set("public_network_access_enabled", publicNetworkAccess)
@@ -85,6 +87,8 @@ d.Set("public_network_access_enabled", publicNetworkAccess)
 * Properties that are `Required` will need to be added to all the existing tests for that resource.
 
 * In cases where a new property or block requires additional setup or pre-requisites it makes sense to create a dedicated test for it.
+
+* Adding a new property or updating an existing property with a default should be checked properly against the current version of Terraform State and the Azure API as tests won't be able to catch a potential breaking change, see our [section on defaults and breaking changes](guide-breaking-changes.md)
 
 ## Docs
 
@@ -115,8 +119,6 @@ Schema: map[string]*pluginsdk.Schema{
 ```
 
 After deprecation the schema might look like the example below.
-
-TODO: how is this done for typed resources?
 
 ```go
 func resource() *pluginsdk.Resource {
@@ -181,5 +183,15 @@ func read() {
 		d.Set("enable_public_network_access", props.PublicNetworkAccess)
     }   
 	...
+}
+```
+
+When deprecating a property in a Typed Resource it is important to ensure that the Go struct representing the schema is correctly tagged to prevent the SDK decoding the removed property when the major version beta / feature flag is in use. In these cases the struct tags must be updated to include `,removedInNextMajorVersion`.  
+
+```go
+type ExampleResourceModel struct {
+	Name                       string `tfschema:"name"`
+	EnablePublicNetworkAccess  bool   `tfschema:"enable_public_network_access,removedInNextMajorVersion"`
+	PublicNetworkAccessEnabled bool   `tfschema:"public_network_access_enabled"`
 }
 ```

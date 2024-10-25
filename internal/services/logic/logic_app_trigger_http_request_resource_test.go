@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package logic_test
 
 import (
@@ -88,7 +91,7 @@ func TestAccLogicAppTriggerHttpRequest_callbackUrl(t *testing.T) {
 			Config: r.method(data),
 			Check: acceptance.ComposeTestCheckFunc(
 				check.That(data.ResourceName).ExistsInAzure(r),
-				check.That(data.ResourceName).Key("callback_url").Exists(),
+				check.That(data.ResourceName).Key("callback_url").IsNotEmpty(),
 			),
 		},
 		data.ImportStep(),
@@ -136,6 +139,8 @@ func TestAccLogicAppTriggerHttpRequest_disappears(t *testing.T) {
 }
 
 func TestAccLogicAppTriggerHttpRequest_workflowWithISE(t *testing.T) {
+	t.Skip("skip as Integration Service Environment is being deprecated")
+
 	data := acceptance.BuildTestData(t, "azurerm_logic_app_trigger_http_request", "test")
 	r := LogicAppTriggerHttpRequestResource{}
 

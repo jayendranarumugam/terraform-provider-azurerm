@@ -67,13 +67,17 @@ The following arguments are supported:
 
 ## Attributes Reference
 
-The following attributes are exported:
+In addition to the Arguments listed above - the following Attributes are exported:
 
 * `id` - The ID of the Authorization Rule.
 
 * `primary_access_key` - The Primary Access Key associated with this Authorization Rule.
 
 * `secondary_access_key` - The Secondary Access Key associated with this Authorization Rule.
+
+* `primary_connection_string` - The Primary Connetion String associated with this Authorization Rule.
+
+* `secondary_connection_string` - The Secondary Connetion String associated with this Authorization Rule.
 
 ## Timeouts
 

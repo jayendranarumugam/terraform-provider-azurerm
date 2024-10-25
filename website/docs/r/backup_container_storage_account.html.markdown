@@ -44,11 +44,11 @@ resource "azurerm_backup_container_storage_account" "container" {
 
 The following arguments are supported:
 
-* `resource_group_name` - (Required) Name of the resource group where the vault is located.
+* `resource_group_name` - (Required) Name of the resource group where the vault is located. Changing this forces a new resource to be created.
 
-* `recovery_vault_name` - (Required) The name of the vault where the storage account will be registered.
+* `recovery_vault_name` - (Required) The name of the vault where the storage account will be registered. Changing this forces a new resource to be created.
 
-* `storage_account_id` - (Required) The ID of the Storage Account to be registered
+* `storage_account_id` - (Required) The ID of the Storage Account to be registered Changing this forces a new resource to be created.
 
 -> **NOTE** Azure Backup places a Resource Lock on the storage account that will cause deletion to fail until the account is unregistered from Azure Backup
 
@@ -63,7 +63,6 @@ In addition to the arguments above, the following attributes are exported:
 The `timeouts` block allows you to specify [timeouts](https://www.terraform.io/language/resources/syntax#operation-timeouts) for certain actions:
 
 * `create` - (Defaults to 30 minutes) Used when creating the Backup Storage Account Container.
-* `update` - (Defaults to 30 minutes) Used when updating the Backup Storage Account Container.
 * `read` - (Defaults to 5 minutes) Used when retrieving the Backup Storage Account Container.
 * `delete` - (Defaults to 30 minutes) Used when deleting the Backup Storage Account Container.
 

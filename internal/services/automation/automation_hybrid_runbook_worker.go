@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package automation
 
 import (
@@ -8,7 +11,7 @@ import (
 
 	"github.com/hashicorp/go-azure-helpers/lang/response"
 	"github.com/hashicorp/go-azure-helpers/resourcemanager/commonschema"
-	"github.com/hashicorp/go-azure-sdk/resource-manager/automation/2021-06-22/hybridrunbookworker"
+	"github.com/hashicorp/go-azure-sdk/resource-manager/automation/2023-11-01/hybridrunbookworker"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/sdk"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/tf/pluginsdk"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/tf/validation"
@@ -107,7 +110,7 @@ func (m HybridRunbookWorkerResource) Create() sdk.ResourceFunc {
 	return sdk.ResourceFunc{
 		Timeout: 30 * time.Minute,
 		Func: func(ctx context.Context, meta sdk.ResourceMetaData) error {
-			client := meta.Client.Automation.RunbookWorkerClient
+			client := meta.Client.Automation.HybridRunbookWorker
 
 			var model HybridRunbookWorkerModel
 			if err := meta.Decode(&model); err != nil {
@@ -127,7 +130,7 @@ func (m HybridRunbookWorkerResource) Create() sdk.ResourceFunc {
 
 			req := hybridrunbookworker.HybridRunbookWorkerCreateParameters{}
 			if model.VmResourceId != "" {
-				req.Properties.VmResourceId = utils.String(model.VmResourceId)
+				req.Properties.VMResourceId = utils.String(model.VmResourceId)
 			}
 
 			future, err := client.Create(ctx, id, req)
@@ -153,7 +156,7 @@ func (m HybridRunbookWorkerResource) Read() sdk.ResourceFunc {
 			if err != nil {
 				return err
 			}
-			client := meta.Client.Automation.RunbookWorkerClient
+			client := meta.Client.Automation.HybridRunbookWorker
 			result, err := client.Get(ctx, *id)
 			if err != nil {
 				return err
@@ -170,7 +173,7 @@ func (m HybridRunbookWorkerResource) Read() sdk.ResourceFunc {
 			output.ResourceGroupName = id.ResourceGroupName
 			output.WorkerGroupName = id.HybridRunbookWorkerGroupName
 			if prop := result.Model.Properties; prop != nil {
-				output.VmResourceId = utils.NormalizeNilableString(prop.VmResourceId)
+				output.VmResourceId = utils.NormalizeNilableString(prop.VMResourceId)
 				output.WorkerType = utils.NormalizeNilableString((*string)(prop.WorkerType))
 				output.LastSeenDateTime = utils.NormalizeNilableString(prop.LastSeenDateTime)
 				output.RegisteredDateTime = utils.NormalizeNilableString(prop.RegisteredDateTime)
@@ -191,7 +194,7 @@ func (m HybridRunbookWorkerResource) Delete() sdk.ResourceFunc {
 				return err
 			}
 			meta.Logger.Infof("deleting %s", id)
-			client := meta.Client.Automation.RunbookWorkerClient
+			client := meta.Client.Automation.HybridRunbookWorker
 			if _, err = client.Delete(ctx, *id); err != nil {
 				return fmt.Errorf("deleting %s: %v", id, err)
 			}

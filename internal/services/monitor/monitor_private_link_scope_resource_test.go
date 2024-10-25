@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package monitor_test
 
 import (
@@ -5,10 +8,11 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/hashicorp/go-azure-helpers/lang/response"
+	"github.com/hashicorp/go-azure-sdk/resource-manager/insights/2021-07-01-preview/privatelinkscopesapis"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/acceptance"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/acceptance/check"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/clients"
-	"github.com/hashicorp/terraform-provider-azurerm/internal/services/monitor/parse"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/tf/pluginsdk"
 	"github.com/hashicorp/terraform-provider-azurerm/utils"
 )
@@ -51,7 +55,7 @@ func TestAccMonitorPrivateLinkScope_complete(t *testing.T) {
 
 	data.ResourceTest(t, r, []acceptance.TestStep{
 		{
-			Config: r.complete(data, "Test"),
+			Config: r.complete(data, "Test", "Open", "Open"),
 			Check: acceptance.ComposeTestCheckFunc(
 				check.That(data.ResourceName).ExistsInAzure(r),
 			),
@@ -66,14 +70,14 @@ func TestAccMonitorPrivateLinkScope_update(t *testing.T) {
 
 	data.ResourceTest(t, r, []acceptance.TestStep{
 		{
-			Config: r.complete(data, "Test1"),
+			Config: r.complete(data, "Test1", "Open", "Open"),
 			Check: acceptance.ComposeTestCheckFunc(
 				check.That(data.ResourceName).ExistsInAzure(r),
 			),
 		},
 		data.ImportStep(),
 		{
-			Config: r.complete(data, "Test2"),
+			Config: r.complete(data, "Test2", "PrivateOnly", "PrivateOnly"),
 			Check: acceptance.ComposeTestCheckFunc(
 				check.That(data.ResourceName).ExistsInAzure(r),
 			),
@@ -83,20 +87,20 @@ func TestAccMonitorPrivateLinkScope_update(t *testing.T) {
 }
 
 func (r MonitorPrivateLinkScopeResource) Exists(ctx context.Context, client *clients.Client, state *pluginsdk.InstanceState) (*bool, error) {
-	id, err := parse.PrivateLinkScopeID(state.ID)
+	id, err := privatelinkscopesapis.ParsePrivateLinkScopeID(state.ID)
 	if err != nil {
 		return nil, err
 	}
 
-	resp, err := client.Monitor.PrivateLinkScopesClient.Get(ctx, id.ResourceGroup, id.Name)
+	resp, err := client.Monitor.PrivateLinkScopesClient.PrivateLinkScopesGet(ctx, *id)
 	if err != nil {
-		if utils.ResponseWasNotFound(resp.Response) {
+		if response.WasNotFound(resp.HttpResponse) {
 			return utils.Bool(false), nil
 		}
 		return nil, fmt.Errorf("retrieving %q %+v", id, err)
 	}
 
-	return utils.Bool(resp.AzureMonitorPrivateLinkScopeProperties != nil), nil
+	return utils.Bool(resp.Model != nil), nil
 }
 
 func (r MonitorPrivateLinkScopeResource) template(data acceptance.TestData) string {
@@ -119,6 +123,7 @@ func (r MonitorPrivateLinkScopeResource) basic(data acceptance.TestData) string 
 resource "azurerm_monitor_private_link_scope" "test" {
   name                = "acctest-ampls-%d"
   resource_group_name = azurerm_resource_group.test.name
+
 }
 `, r.template(data), data.RandomInteger)
 }
@@ -130,11 +135,12 @@ func (r MonitorPrivateLinkScopeResource) requiresImport(data acceptance.TestData
 resource "azurerm_monitor_private_link_scope" "import" {
   name                = azurerm_monitor_private_link_scope.test.name
   resource_group_name = azurerm_monitor_private_link_scope.test.resource_group_name
+
 }
 `, r.basic(data))
 }
 
-func (r MonitorPrivateLinkScopeResource) complete(data acceptance.TestData, tag string) string {
+func (r MonitorPrivateLinkScopeResource) complete(data acceptance.TestData, tag string, ingestionAccessMode string, queryAccessMode string) string {
 	return fmt.Sprintf(`
 %s
 
@@ -142,9 +148,12 @@ resource "azurerm_monitor_private_link_scope" "test" {
   name                = "acctest-AMPLS-%d"
   resource_group_name = azurerm_resource_group.test.name
 
+  ingestion_access_mode = "%s"
+  query_access_mode     = "%s"
+
   tags = {
     ENV = "%s"
   }
 }
-`, r.template(data), data.RandomInteger, tag)
+`, r.template(data), data.RandomInteger, ingestionAccessMode, queryAccessMode, tag)
 }

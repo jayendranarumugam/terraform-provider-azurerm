@@ -1,10 +1,13 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package migration
 
 import (
 	"context"
 	"strings"
 
-	"github.com/hashicorp/go-azure-sdk/resource-manager/servicebus/2022-01-01-preview/namespaces"
+	"github.com/hashicorp/go-azure-sdk/resource-manager/servicebus/2022-10-01-preview/namespaces"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/tf/pluginsdk"
 )
 
@@ -65,10 +68,7 @@ func (NamespaceNetworkRuleSetV0ToV1) Schema() map[string]*pluginsdk.Schema {
 func (NamespaceNetworkRuleSetV0ToV1) UpgradeFunc() pluginsdk.StateUpgraderFunc {
 	return func(ctx context.Context, rawState map[string]interface{}, meta interface{}) (map[string]interface{}, error) {
 		// removing the constant URI suffix from the id since it isn't needed
-		oldId := rawState["id"].(string)
-		if strings.HasSuffix(oldId, "/networkrulesets/default") {
-			oldId = strings.TrimSuffix(oldId, "/networkrulesets/default")
-		}
+		oldId := strings.TrimSuffix(rawState["id"].(string), "/networkrulesets/default")
 
 		id, err := namespaces.ParseNamespaceID(oldId)
 		if err != nil {

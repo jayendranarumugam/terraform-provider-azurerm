@@ -86,7 +86,7 @@ The following arguments are supported:
 
 * `amount` - (Required) The total amount of cost to track with the budget.
 
-* `time_grain` - (Required) The time covered by a budget. Tracking of the amount will be reset based on the time grain. Must be one of `BillingAnnual`, `BillingMonth`, `BillingQuarter`, `Annually`, `Monthly` and `Quarterly`. Defaults to `Monthly`.
+* `time_grain` - (Optional) The time covered by a budget. Tracking of the amount will be reset based on the time grain. Must be one of `BillingAnnual`, `BillingMonth`, `BillingQuarter`, `Annually`, `Monthly` and `Quarterly`. Defaults to `Monthly`. Changing this forces a new resource to be created.
 
 * `time_period` - (Required) A `time_period` block as defined below.
 
@@ -102,16 +102,6 @@ A `filter` block supports the following:
 
 * `tag` - (Optional) One or more `tag` blocks as defined below to filter the budget on.
 
-* `not` - (Optional) A `not` block as defined below to filter the budget on. This is deprecated as the API no longer supports it and will be removed in version 4.0 of the provider.
-
----
-
-A `not` block supports the following:
-
-* `dimension` - (Optional) One `dimension` block as defined below to filter the budget on. Conflicts with `tag`.
-
-* `tag` - (Optional) One `tag` block as defined below to filter the budget on. Conflicts with `dimension`.
-
 ---
 
 A `notification` block supports the following:
@@ -122,9 +112,9 @@ A `notification` block supports the following:
 
 * `contact_emails` - (Required) Specifies a list of email addresses to send the budget notification to when the threshold is exceeded.
 
-* `threshold_type` - (Optional) The type of threshold for the notification. This determines whether the notification is triggered by forecasted costs or actual costs. The allowed values are `Actual` and `Forecasted`. Default is `Actual`. Changing this forces a new resource to be created.
+* `threshold_type` - (Optional) The type of threshold for the notification. This determines whether the notification is triggered by forecasted costs or actual costs. The allowed values are `Actual` and `Forecasted`. Default is `Actual`.
 
-* `enabled` - (Optional) Should the notification be enabled?
+* `enabled` - (Optional) Should the notification be enabled? Defaults to `true`.
 
 ---
 
@@ -132,7 +122,7 @@ A `dimension` block supports the following:
 
 * `name` - (Required) The name of the column to use for the filter. The allowed values are `ChargeType`, `Frequency`, `InvoiceId`, `Meter`, `MeterCategory`, `MeterSubCategory`, `PartNumber`, `PricingModel`, `Product`, `ProductOrderId`, `ProductOrderName`, `PublisherType`, `ReservationId`, `ReservationName`, `ResourceGroupName`, `ResourceGuid`, `ResourceId`, `ResourceLocation`, `ResourceType`, `ServiceFamily`, `ServiceName`, `SubscriptionID`, `SubscriptionName`, `UnitOfMeasure`.
 
-* `operator` - (Optional) The operator to use for comparison. The allowed values are `In`.
+* `operator` - (Optional) The operator to use for comparison. The allowed values are `In`. Defaults to `In`.
 
 * `values` - (Required) Specifies a list of values for the column.
 
@@ -142,7 +132,7 @@ A `tag` block supports the following:
 
 * `name` - (Required) The name of the tag to use for the filter.
 
-* `operator` - (Optional) The operator to use for comparison. The allowed values are `In`.
+* `operator` - (Optional) The operator to use for comparison. The allowed values are `In`. Defaults to `In`.
 
 * `values` - (Required) Specifies a list of values for the tag.
 
@@ -160,7 +150,7 @@ In addition to the Arguments listed above - the following Attributes are exporte
 
 * `id` - The ID of the Management Group Consumption Budget.
 
-* `etag` - The ETag of the Management Group Consumption Budget.
+* `etag` - (Optional) The ETag of the Management Group Consumption Budget.
 
 ## Timeouts
 

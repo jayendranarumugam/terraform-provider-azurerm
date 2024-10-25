@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package elastic
 
 import (
@@ -8,8 +11,8 @@ import (
 	"github.com/hashicorp/go-azure-helpers/resourcemanager/commonschema"
 	"github.com/hashicorp/go-azure-helpers/resourcemanager/location"
 	"github.com/hashicorp/go-azure-helpers/resourcemanager/tags"
-	"github.com/hashicorp/go-azure-sdk/resource-manager/elastic/2020-07-01/monitorsresource"
-	"github.com/hashicorp/go-azure-sdk/resource-manager/elastic/2020-07-01/rules"
+	"github.com/hashicorp/go-azure-sdk/resource-manager/elastic/2023-06-01/monitorsresource"
+	"github.com/hashicorp/go-azure-sdk/resource-manager/elastic/2023-06-01/rules"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/clients"
 	"github.com/hashicorp/terraform-provider-azurerm/internal/services/elastic/validate"
@@ -171,14 +174,14 @@ func dataSourceElasticsearchRead(d *schema.ResourceData, meta interface{}) error
 					// AzureSubscriptionId is the same as the subscription deployed into, so no point exposing it
 					// ElasticsearchRegion is `{Cloud}-{Region}` - so the same as location/not worth exposing for now?
 					d.Set("elastic_cloud_deployment_id", elastic.ElasticCloudDeployment.DeploymentId)
-					d.Set("elasticsearch_service_url", elastic.ElasticCloudDeployment.ElasticsearchServiceUrl)
-					d.Set("kibana_service_url", elastic.ElasticCloudDeployment.KibanaServiceUrl)
-					d.Set("kibana_sso_uri", elastic.ElasticCloudDeployment.KibanaSsoUrl)
+					d.Set("elasticsearch_service_url", elastic.ElasticCloudDeployment.ElasticsearchServiceURL)
+					d.Set("kibana_service_url", elastic.ElasticCloudDeployment.KibanaServiceURL)
+					d.Set("kibana_sso_uri", elastic.ElasticCloudDeployment.KibanaSsoURL)
 				}
 				if elastic.ElasticCloudUser != nil {
 					d.Set("elastic_cloud_user_id", elastic.ElasticCloudUser.Id)
 					d.Set("elastic_cloud_email_address", elastic.ElasticCloudUser.EmailAddress)
-					d.Set("elastic_cloud_sso_default_url", elastic.ElasticCloudUser.ElasticCloudSsoDefaultUrl)
+					d.Set("elastic_cloud_sso_default_url", elastic.ElasticCloudUser.ElasticCloudSsoDefaultURL)
 				}
 			}
 		}

@@ -39,13 +39,13 @@ resource "azurerm_mssql_outbound_firewall_rule" "example" {
 
 The following arguments are supported:
 
-* `name` - (Required) The name of the outbound firewall rule. This should be a FQDN.
+* `name` - (Required) The name of the outbound firewall rule. This should be a FQDN. Changing this forces a new resource to be created.
 
-* `server_id` - (Required) The resource ID of the SQL Server on which to create the Outbound Firewall Rule.
+* `server_id` - (Required) The resource ID of the SQL Server on which to create the Outbound Firewall Rule. Changing this forces a new resource to be created.
 
 ## Attributes Reference
 
-The following attributes are exported:
+In addition to the Arguments listed above - the following Attributes are exported:
 
 * `id` - The SQL Outbound Firewall Rule ID.
 
@@ -54,7 +54,6 @@ The following attributes are exported:
 The `timeouts` block allows you to specify [timeouts](https://www.terraform.io/language/resources/syntax#operation-timeouts) for certain actions:
 
 * `create` - (Defaults to 30 minutes) Used when creating the SQL Outbound Firewall Rule.
-* `update` - (Defaults to 30 minutes) Used when updating the SQL Outbound Firewall Rule.
 * `read` - (Defaults to 5 minutes) Used when retrieving the SQL Outbound Firewall Rule.
 * `delete` - (Defaults to 30 minutes) Used when deleting the SQL Outbound Firewall Rule.
 

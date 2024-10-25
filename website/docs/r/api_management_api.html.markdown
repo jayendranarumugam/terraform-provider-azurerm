@@ -54,7 +54,7 @@ The following arguments are supported:
 
 * `resource_group_name` - (Required) The Name of the Resource Group where the API Management API exists. Changing this forces a new resource to be created.
 
-* `revision` - (Required) The Revision which used for this API.
+* `revision` - (Required) The Revision which used for this API. Changing this forces a new resource to be created.
 
 ---
 
@@ -82,13 +82,9 @@ The following arguments are supported:
 
 * `service_url` - (Optional) Absolute URL of the backend service implementing this API.
 
-* `soap_pass_through` - (Optional) Should this API expose a SOAP frontend, rather than a HTTP frontend? Defaults to `false`.
-
--> **NOTE:** This property has been deprecated in favour of the `api_type` property and will be removed in version 4.0 of the provider.
-
 * `subscription_key_parameter_names` - (Optional) A `subscription_key_parameter_names` block as documented below.
 
-* `subscription_required` - (Optional) Should this API require a subscription key?
+* `subscription_required` - (Optional) Should this API require a subscription key? Defaults to `true`.
 
 * `terms_of_service_url` - (Optional) Absolute URL of the Terms of Service for the API.
 
@@ -166,7 +162,7 @@ A `wsdl_selector` block supports the following:
 
 ## Attributes Reference
 
-In addition to all arguments above, the following attributes are exported:
+In addition to the Arguments listed above - the following Attributes are exported:
 
 * `id` - The ID of the API Management API.
 
@@ -192,5 +188,5 @@ The `timeouts` block allows you to specify [timeouts](https://www.terraform.io/l
 API Management API's can be imported using the `resource id`, e.g.
 
 ```shell
-terraform import azurerm_api_management_api.example /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/mygroup1/providers/Microsoft.ApiManagement/service/instance1/apis/api1
+terraform import azurerm_api_management_api.example /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/mygroup1/providers/Microsoft.ApiManagement/service/instance1/apis/api1;rev=1
 ```

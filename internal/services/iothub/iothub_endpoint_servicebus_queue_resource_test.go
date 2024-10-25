@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package iothub_test
 
 import (
@@ -152,7 +155,7 @@ resource "azurerm_servicebus_queue" "test" {
   name         = "acctest-%[1]d"
   namespace_id = azurerm_servicebus_namespace.test.id
 
-  enable_partitioning = true
+  partitioning_enabled = true
 }
 
 resource "azurerm_servicebus_queue_authorization_rule" "test" {
@@ -176,6 +179,10 @@ resource "azurerm_iothub" "test" {
 
   tags = {
     purpose = "testing"
+  }
+
+  lifecycle {
+    ignore_changes = [endpoint]
   }
 }
 
@@ -230,7 +237,7 @@ resource "azurerm_servicebus_queue" "test" {
   name         = "acctest-%[1]d"
   namespace_id = azurerm_servicebus_namespace.test.id
 
-  enable_partitioning = true
+  partitioning_enabled = true
 }
 
 resource "azurerm_servicebus_queue_authorization_rule" "test" {
@@ -254,6 +261,10 @@ resource "azurerm_iothub" "test" {
 
   tags = {
     purpose = "testing"
+  }
+
+  lifecycle {
+    ignore_changes = [endpoint]
   }
 }
 
@@ -364,7 +375,7 @@ resource "azurerm_servicebus_queue" "test" {
   name         = "acctest-%[1]d"
   namespace_id = azurerm_servicebus_namespace.test.id
 
-  enable_partitioning = true
+  partitioning_enabled = true
 }
 
 resource "azurerm_servicebus_queue_authorization_rule" "test" {
@@ -412,6 +423,10 @@ resource "azurerm_iothub" "test" {
   depends_on = [
     azurerm_role_assignment.test_azure_service_bus_data_sender_user,
   ]
+
+  lifecycle {
+    ignore_changes = [endpoint]
+  }
 }
 
 resource "azurerm_role_assignment" "test_azure_service_bus_data_sender_system" {
